@@ -111,15 +111,15 @@ Stream<({int toUpdateCount, int updatedCount})> updateBankSongs(
                 protoSongs.map((e) => e.uuid).toList(),
               );
             } catch (e) {
-              if (retries > 5) {
-                // Give up after 5 attempts
+              if (retries >= 3) {
+                // Give up after 3 attempts
                 rethrow;
               }
-              retries++;
               log.info(
-                '$protoSongs azonosítójú dalok részleteinek lekérdezésekor hiba lépett fel, újrapróbálkozás: ($retries / 5)',
+                '$protoSongs azonosítójú dalok részleteinek lekérdezésekor hiba lépett fel, újrapróbálkozás: ($retries / 3)',
               );
-              await Future.delayed(const Duration(milliseconds: 500));
+              await Future.delayed(Duration(milliseconds: 500 * retries * retries));
+              retries++;
             }
           } while (songs == null);
           for (Song song in songs) {
