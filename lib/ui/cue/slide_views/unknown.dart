@@ -59,7 +59,7 @@ class UnknownTypeSlideView extends StatelessWidget {
       type: LErrorType.warning,
       title: 'Ismeretlen diatípus. Talán újabb verzióban készítették a listát?',
       icon: Icons.question_mark,
-      message: slide.getPreview(),
+      message: slide.preview,
       stack: slide.json.toString(),
     );
   }

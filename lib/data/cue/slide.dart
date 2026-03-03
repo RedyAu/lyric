@@ -10,8 +10,8 @@ import 'cue.dart';
 part 'slide_types/song_slide.dart';
 
 sealed class Slide {
-  String getPreview();
-  // todo have interfaces for title, subtitle, etc
+  String get title;
+  String get preview;
   final String uuid;
   final String? comment;
 
@@ -47,7 +47,10 @@ class UnknownTypeSlide extends Slide {
   final Map json;
 
   @override
-  String getPreview() => 'Ismeretlen diatípus: ${json['slideType']}';
+  String get title => 'Ismeretlen dia';
+
+  @override
+  String get preview => 'Ismeretlen diatípus: ${json['slideType']}';
 
   @override
   Map toJson() => json;

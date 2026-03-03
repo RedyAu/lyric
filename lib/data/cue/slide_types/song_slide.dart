@@ -25,14 +25,10 @@ class SongSlide extends Slide {
   );
 
   @override
-  String getPreview() {
-    return 'Dalszöveg';
-    // TODO
-    /*return song.lyrics.substring(
-      0,
-      song.lyrics.indexOf('\n'), // TODO proper bounds checking
-    );*/
-  }
+  String get title => song.title;
+
+  @override
+  String get preview => song.firstLine;
 
   static Future<SongSlide> reviveFromJson(Map json, Cue parent) async {
     var songResult = await getSongForSlideJson(json['song']);
