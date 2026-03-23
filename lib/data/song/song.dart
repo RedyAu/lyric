@@ -176,6 +176,9 @@ class KeyField {
     if (value == null || value.isEmpty) return null;
 
     // TODO handle multiple keys with a key list
+    /*if (value.split(', ').length > 1) {
+      throw UnsupportedError('Unsupported key field with multiple keys!');
+    }*/
     value = value.split(', ').first;
 
     var parts = value.split('-');

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
@@ -17,32 +18,35 @@ import '../http/dio_provider.dart';
 
 part 'update.g.dart';
 
-bool isDone(({int toUpdateCount, int updatedCount})? record) {
+bool isDone(
+  ({int toUpdateCount, int updatedCount, int songsWithErrors})? record,
+) {
   if (record == null) return false;
-  return record.toUpdateCount == record.updatedCount;
+  return record.toUpdateCount == record.updatedCount + record.songsWithErrors;
 }
 
-double? getProgress(({int toUpdateCount, int updatedCount})? record) {
+double? getProgress(
+  ({int toUpdateCount, int updatedCount, int songsWithErrors})? record,
+) {
   if (record == null) return null;
   if (record.toUpdateCount == 0) return 1;
-  return record.updatedCount / record.toUpdateCount;
+  return (record.updatedCount + record.songsWithErrors) / record.toUpdateCount;
 }
 
 /// Update all songs on all banks
 @Riverpod(keepAlive: true)
-Stream<Map<Bank, ({int toUpdateCount, int updatedCount})?>> updateAllBanksSongs(
-  Ref ref,
-) async* {
+Stream<Map<Bank, ({int toUpdateCount, int updatedCount, int songsWithErrors})?>>
+updateAllBanksSongs(Ref ref) async* {
   final dio = ref.read(dioProvider);
 
   await updateBanks(dio);
 
-  Map<Bank, ({int toUpdateCount, int updatedCount})?> bankStates =
-      Map.fromEntries(
-        (await (db.banks.select()..where((b) => b.isEnabled)).get()).map(
-          (e) => MapEntry(e, null),
-        ),
-      );
+  Map<Bank, ({int toUpdateCount, int updatedCount, int songsWithErrors})?>
+  bankStates = Map.fromEntries(
+    (await (db.banks.select()..where((b) => b.isEnabled)).get()).map(
+      (e) => MapEntry(e, null),
+    ),
+  );
 
   // copy to new instance to avoid it getting changed during ui
   yield {...bankStates};
@@ -60,99 +64,225 @@ Stream<Map<Bank, ({int toUpdateCount, int updatedCount})?>> updateAllBanksSongs(
 }
 
 /// Update all songs in a bank
-Stream<({int toUpdateCount, int updatedCount})> updateBankSongs(
-  Bank bank,
-  Dio dio,
-) async* {
-  final bankApi = BankApi(dio);
-  // stay in indefinite loading state until we know protosong count
-  // return protosong count for display
-  List<ProtoSong> toUpdate;
-  if (bank.noCms) {
-    // when the bank static without cms, update all songs if there have been changes.
-    final remoteLastUpdated = await bankApi.getRemoteLastUpdated(bank);
-    if (remoteLastUpdated != null &&
-        bank.lastUpdated != null &&
-        bank.lastUpdated!.isAfter(remoteLastUpdated)) {
-      toUpdate = [];
-    } else {
-      toUpdate = await bankApi.getProtoSongs(bank);
-    }
-  } else {
-    toUpdate = await bankApi.getProtoSongs(bank, since: bank.lastUpdated);
-  }
+Stream<({int toUpdateCount, int updatedCount, int songsWithErrors})>
+updateBankSongs(Bank bank, Dio dio) {
+  final controller =
+      StreamController<
+        ({int toUpdateCount, int updatedCount, int songsWithErrors})
+      >();
 
-  int updatedCount = 0;
-  bool hadErrors = false;
+  unawaited(() async {
+    try {
+      final bankApi = BankApi(dio);
+      // stay in indefinite loading state until we know protosong count
+      // return protosong count for display
+      List<ProtoSong> toUpdate;
+      // TODO: merge persisted failed ProtoSongs here once bank-level storage exists,
+      // so previously failed songs are always retried on every update.
+      if (bank.noCms) {
+        // when the bank static without cms, update all songs if there have been changes.
+        final remoteLastUpdated = await bankApi.getRemoteLastUpdated(bank);
+        if (remoteLastUpdated != null &&
+            bank.lastUpdated != null &&
+            bank.lastUpdated!.isAfter(remoteLastUpdated)) {
+          toUpdate = [];
+        } else {
+          toUpdate = await bankApi.getProtoSongs(bank);
+        }
+      } else {
+        toUpdate = await bankApi.getProtoSongs(bank, since: bank.lastUpdated);
+      }
 
-  yield (toUpdateCount: toUpdate.length, updatedCount: 0);
+      int updatedCount = 0;
+      bool hadErrors = false;
+      final Map<String, String> failedSongsByUuid = {};
 
-  if (toUpdate.isNotEmpty) {
-    final Queue queue = Queue(parallel: bank.parallelUpdateJobs);
+      void emitProgress() {
+        controller.add((
+          toUpdateCount: toUpdate.length,
+          updatedCount: updatedCount,
+          songsWithErrors: failedSongsByUuid.length,
+        ));
+      }
 
-    List<List<ProtoSong>> toUpdateBatches = [];
-    for (var i = 0; i < toUpdate.length / bank.amountOfSongsInRequest; i++) {
-      int startIndex = i * bank.amountOfSongsInRequest;
-      int endIndex = min(
-        (i + 1) * bank.amountOfSongsInRequest,
-        toUpdate.length,
-      );
-      toUpdateBatches.add(toUpdate.sublist(startIndex, endIndex));
-    }
+      void markFailedProtoSong(ProtoSong protoSong) {
+        hadErrors = true;
+        failedSongsByUuid[protoSong.uuid] = protoSong.title;
+        emitProgress();
+      }
 
-    for (List<ProtoSong> protoSongs in toUpdateBatches) {
-      queue.add(() async {
+      Future<void> upsertSong(Song song) async {
         try {
-          // TODO add batch-splitting on error
+          await db
+              .into(db.songs)
+              .insert(
+                song,
+                mode: InsertMode.insertOrReplace,
+              ); // TODO handle user modified data, etc
+
+          deleteAssetsForSong(song);
+
+          updatedCount++;
+          emitProgress();
+        } catch (f, t) {
+          hadErrors = true;
+          failedSongsByUuid[song.uuid] = song.title;
+          emitProgress();
+          log.severe(
+            'Nem sikerült adatbázisba írni: "${song.title}"',
+            f.toString(),
+            t,
+          );
+        }
+      }
+
+      Future<void> processSingleSong(ProtoSong protoSong) async {
+        try {
+          final songs = await bankApi.getDetailsForSongs(bank, [
+            protoSong.uuid,
+          ]);
+          final matchingSongs = songs.where(
+            (song) => song.uuid == protoSong.uuid,
+          );
+          if (matchingSongs.isEmpty) {
+            markFailedProtoSong(protoSong);
+            log.severe(
+              '"${protoSong.title}" lekérdezése sikeres volt, de a válaszban nem szerepelt a dal.',
+              'UUID: ${protoSong.uuid}',
+            );
+            return;
+          }
+
+          for (final song in matchingSongs) {
+            await upsertSong(song);
+          }
+        } catch (e, s) {
+          markFailedProtoSong(protoSong);
+          log.severe(
+            'Nem sikerült lekérdezni: "${protoSong.title}"',
+            e.toString(),
+            s,
+          );
+        }
+      }
+
+      Future<void> processBatch(List<ProtoSong> protoSongs) async {
+        if (protoSongs.isEmpty) return;
+
+        if (protoSongs.length == 1) {
+          await processSingleSong(protoSongs.single);
+          return;
+        }
+
+        try {
           final songs = await bankApi.getDetailsForSongs(
             bank,
             protoSongs.map((e) => e.uuid).toList(),
           );
-          for (Song song in songs) {
-            try {
-              await db
-                  .into(db.songs)
-                  .insert(
-                    song,
-                    mode: InsertMode.insertOrReplace,
-                  ); // todo handle user modified data, etc
 
-              deleteAssetsForSong(song);
+          final requestedUuids = protoSongs.map((e) => e.uuid).toSet();
+          final returnedRequestedSongs = songs
+              .where((song) => requestedUuids.contains(song.uuid))
+              .toList();
+          final returnedRequestedUuids = returnedRequestedSongs
+              .map((song) => song.uuid)
+              .toSet();
 
-              updatedCount++;
-            } catch (f, t) {
-              hadErrors = true;
-              log.severe(
-                'Nem sikerült ${song.uuid} azonosítójú dal adatbázisba írása:',
-                f,
-                t,
-              );
+          for (final song in returnedRequestedSongs) {
+            await upsertSong(song);
+          }
+
+          final missingProtoSongs = protoSongs
+              .where(
+                (protoSong) => !returnedRequestedUuids.contains(protoSong.uuid),
+              )
+              .toList();
+
+          if (missingProtoSongs.isNotEmpty) {
+            hadErrors = true;
+            final missingTitles = missingProtoSongs
+                .map((e) => e.title)
+                .toList();
+            final missingUuids = missingProtoSongs.map((e) => e.uuid).toList();
+            log.info(
+              '$missingTitles dalok hiányoznak a batch válaszból, egyenként újrapróbáljuk.',
+              missingUuids.toString(),
+            );
+            for (final protoSong in missingProtoSongs) {
+              await processSingleSong(protoSong);
             }
           }
         } catch (e, s) {
           hadErrors = true;
-          log.severe(
-            '$protoSongs azonosítójú dalok lekérdezése nem sikerült:',
-            e,
+          final protoSongTitles = protoSongs.map((e) => e.title).toList();
+          log.info(
+            '$protoSongTitles dalok batch lekérdezése nem sikerült, egyedi lekérdezésekre váltunk.',
+            'Hiba: $e',
             s,
           );
+          for (final protoSong in protoSongs) {
+            await processSingleSong(protoSong);
+          }
         }
-      });
+      }
+
+      emitProgress();
+
+      if (toUpdate.isNotEmpty) {
+        final Queue queue = Queue(parallel: bank.parallelUpdateJobs);
+
+        List<List<ProtoSong>> toUpdateBatches = [];
+        for (
+          var i = 0;
+          i < toUpdate.length / bank.amountOfSongsInRequest;
+          i++
+        ) {
+          int startIndex = i * bank.amountOfSongsInRequest;
+          int endIndex = min(
+            (i + 1) * bank.amountOfSongsInRequest,
+            toUpdate.length,
+          );
+          toUpdateBatches.add(toUpdate.sublist(startIndex, endIndex));
+        }
+
+        for (List<ProtoSong> protoSongs in toUpdateBatches) {
+          queue.add(() async {
+            await processBatch(protoSongs);
+          });
+        }
+
+        await for (int remaining in queue.remainingItems) {
+          emitProgress();
+          if (remaining == 0) break;
+        }
+
+        final songsWithErrors = failedSongsByUuid.length;
+        if (songsWithErrors > 0) {
+          log.warning(
+            '${bank.name} tárból $songsWithErrors dal frissítése sikertelen volt!',
+          );
+        }
+        // TODO: persist failedSongsByUuid per bank once DB support is added,
+        // then always include that list in the next update run.
+
+        await setAsUpdatedNow(bank);
+      }
+
+      if (!hadErrors) {
+        log.info('Minden dal frissítve: ${bank.name}');
+      }
+
+      return;
+    } catch (e, s) {
+      if (!controller.isClosed) {
+        controller.addError(e, s);
+      }
+    } finally {
+      if (!controller.isClosed) {
+        await controller.close();
+      }
     }
+  }());
 
-    await for (int remaining in queue.remainingItems) {
-      yield (toUpdateCount: toUpdate.length, updatedCount: updatedCount);
-      if (remaining == 0) break;
-    }
-
-    await setAsUpdatedNow(bank);
-  }
-
-  if (!hadErrors) {
-    log.info('Minden dal frissítve: ${bank.name}');
-  } else {
-    log.warning('Néhány dalt nem sikerült frissíteni: ${bank.name}');
-  }
-
-  return;
+  return controller.stream;
 }

@@ -169,12 +169,7 @@ class _LoadingPageState extends ConsumerState<LoadingPage> {
                                               if (stateCount == 0) return null;
 
                                               int doneCount = value.values
-                                                  .where(
-                                                    (e) =>
-                                                        e != null &&
-                                                        (e.toUpdateCount ==
-                                                            e.updatedCount),
-                                                  )
+                                                  .where((e) => isDone(e))
                                                   .length;
 
                                               return doneCount / stateCount;
@@ -207,7 +202,7 @@ class _LoadingPageState extends ConsumerState<LoadingPage> {
                                             ),
                                             subtitle: Text(
                                               e.value != null
-                                                  ? "${e.value!.updatedCount} / ${e.value!.toUpdateCount} frissítve"
+                                                  ? "${e.value!.updatedCount} (${e.value!.songsWithErrors} hiba) / ${e.value!.toUpdateCount} frissítve"
                                                   : "",
                                             ),
                                           ),

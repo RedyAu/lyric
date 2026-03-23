@@ -29,9 +29,7 @@ Future updateBanks(Dio dio) async {
       throw AppError.from(
         e,
         userMessage:
-            'Nem sikerült lekérni a(z) ${protoBank['name']} tár adatait. Próbáld újra később.',
-        technicalMessage:
-            'Nem sikerült lekérni a(z) ${protoBank['name']} tár adatait: $e',
+            'Nem sikerült lekérni az adatokat: ${protoBank['name']}. Próbáld újra később.',
       );
     }
 

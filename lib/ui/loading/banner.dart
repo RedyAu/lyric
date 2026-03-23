@@ -55,7 +55,7 @@ class UpdatingBanner extends ConsumerWidget {
       if (stateCount == 0) return null;
 
       int doneCount = bankStates.requireValue.values
-          .where((e) => e != null && (e.toUpdateCount == e.updatedCount))
+          .where((e) => isDone(e))
           .length;
 
       return doneCount / stateCount;
@@ -112,7 +112,8 @@ class UpdatingBanner extends ConsumerWidget {
 
   Widget _buildBannerStructure({
     Key? key,
-    Map<Bank, ({int toUpdateCount, int updatedCount})?>? value,
+    Map<Bank, ({int toUpdateCount, int updatedCount, int songsWithErrors})?>?
+    value,
     double? overallProgress,
     bool isLoading = false,
   }) {
@@ -147,7 +148,7 @@ class UpdatingBanner extends ConsumerWidget {
           message = 'Minden friss.';
         } else {
           message =
-              '${stateToShow.value!.updatedCount} / ${stateToShow.value!.toUpdateCount} frissítve';
+              '${stateToShow.value!.updatedCount} (${stateToShow.value!.songsWithErrors} hiba) / ${stateToShow.value!.toUpdateCount} frissítve';
         }
       } else {
         message = '';
