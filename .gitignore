@@ -32,6 +32,10 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+web/drift_worker.js
+web/drift_worker.js.deps
+web/drift_worker.js.map
+web/sqlite3.wasm
 
 # Symbolication related
 app.*.symbols

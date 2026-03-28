@@ -90,16 +90,21 @@ class BankSongUpdateScheduler extends Notifier<AsyncValue<void>> {
 
     try {
       final dio = ref.read(dioProvider);
-      await updateBanks(dio);
+      final availableBankUuids = await updateBanks(dio);
 
       final enabledBanks = await (db.select(
         db.banks,
       )..where((bank) => bank.isEnabled)).get();
+      final schedulableBanks = enabledBanks
+          .where((bank) => availableBankUuids.contains(bank.uuid))
+          .toList(growable: false);
 
       final queue = ref.read(backgroundTaskQueueProvider.notifier);
       await queue.removeFinishedTasks();
       queue.enqueueAll(
-        enabledBanks.map((bank) => BankSongUpdateTask(bank: bank, dio: dio)),
+        schedulableBanks.map(
+          (bank) => BankSongUpdateTask(bank: bank, dio: dio),
+        ),
       );
 
       state = const AsyncValue.data(null);

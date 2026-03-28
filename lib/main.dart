@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,7 +6,6 @@ import 'package:flutter_fullscreen/flutter_fullscreen.dart';
 import 'package:go_router/go_router.dart';
 import 'services/preferences/providers/general.dart';
 import 'ui/cue/cue_page_type.dart';
-import 'package:path_provider/path_provider.dart';
 
 import 'config/config.dart';
 import 'data/database.dart';
@@ -23,8 +23,9 @@ part 'router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await FullScreen.ensureInitialized();
-  dataDir = await getApplicationDocumentsDirectory();
+  if (!kIsWeb) {
+    await FullScreen.ensureInitialized();
+  }
   db = LyricDatabase();
 
   runApp(

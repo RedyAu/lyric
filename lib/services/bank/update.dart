@@ -1,16 +1,20 @@
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 import '../../config/config.dart';
 import '../../data/database.dart';
+import '../../data/log/logger.dart';
 import '../error/app_error.dart';
 import 'from_uuid.dart';
 
 import '../../data/bank/bank.dart';
 
-Future updateBanks(Dio dio) async {
+Future<Set<String>> updateBanks(Dio dio) async {
   late List protoBanks;
   try {
-    protoBanks = (await dio.get<List>('${appConfig.apiRoot}/banks')).data!;
+    protoBanks = (await dio.getUri<List>(
+      Uri.parse('${appConfig.apiRoot}/banks/'),
+    )).data!;
   } catch (e, s) {
     throw AppError.from(
       e,
@@ -20,18 +24,24 @@ Future updateBanks(Dio dio) async {
     );
   }
 
+  final availableBankUuids = <String>{};
+
   for (final protoBank in protoBanks) {
     late Map details;
 
     try {
-      details = (await dio.get<Map>('${protoBank['api']}/about')).data!;
+      details = (await dio.getUri<Map>(
+        Uri.parse('${protoBank['api']}/about/'),
+      )).data!;
     } catch (e, s) {
-      throw AppError.from(
+      log.warning(
+        kIsWeb
+            ? 'A(z) ${protoBank['name']} daltár böngészőből nem érhető el, ezért most kihagyjuk.'
+            : 'Nem sikerült lekérni az adatokat: ${protoBank['name']}.',
         e,
-        stackTrace: s,
-        userMessage:
-            'Nem sikerült lekérni az adatokat: ${protoBank['name']}. Próbáld újra később.',
+        s,
       );
+      continue;
     }
 
     Bank? existingBank = await dbWatchBankWithUuid(details['uuid']).first;
@@ -93,7 +103,8 @@ Future updateBanks(Dio dio) async {
     );
 
     await db.into(db.banks).insertOnConflictUpdate(banksCompanion);
+    availableBankUuids.add(details['uuid'] as String);
   }
 
-  return;
+  return availableBankUuids;
 }

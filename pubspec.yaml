@@ -27,6 +27,7 @@ msix_config:
 dependencies:
   flutter:
     sdk: flutter
+  archive: ^4.0.7
   intl: any
   flutter_localizations:
     sdk: flutter

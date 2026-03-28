@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_fullscreen/flutter_fullscreen.dart';
@@ -46,13 +47,17 @@ class _CuePresentMusicianPageState extends ConsumerState<CuePresentMusicianPage>
     });
 
     super.initState();
-    FullScreen.setFullScreen(true, systemUiMode: SystemUiMode.edgeToEdge);
+    if (!kIsWeb) {
+      FullScreen.setFullScreen(true, systemUiMode: SystemUiMode.edgeToEdge);
+    }
   }
 
   @override
   void dispose() {
+    if (!kIsWeb) {
+      FullScreen.setFullScreen(false);
+    }
     super.dispose();
-    FullScreen.setFullScreen(false);
   }
 
   Timer? overlayCloser;

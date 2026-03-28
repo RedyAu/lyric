@@ -13,14 +13,25 @@ class BankApi {
 
   const BankApi(this.dio);
 
-  Future<List<ProtoSong>> getProtoSongs(Bank bank, {DateTime? since}) async {
-    String url = '${bank.baseUrl}/songs';
-    if (since != null) {
-      String formattedDate = DateFormat('yyyy-MM-dd+HH:mm').format(since);
-      url += '?c=$formattedDate';
+  Object? _decodeJsonBody(Object? body) {
+    if (body is String) {
+      return jsonDecode(body);
     }
-    final resp = await dio.get<String>(url);
-    final jsonList = jsonDecode(resp.data ?? "[]") as List;
+
+    return body;
+  }
+
+  Future<List<ProtoSong>> getProtoSongs(Bank bank, {DateTime? since}) async {
+    final queryParameters = <String, dynamic>{};
+    if (since != null) {
+      queryParameters['c'] = DateFormat('yyyy-MM-dd+HH:mm').format(since);
+    }
+
+    final source = Uri.parse('${bank.baseUrl}/songs/').replace(
+      queryParameters: queryParameters.isEmpty ? null : queryParameters,
+    );
+    final resp = await dio.getUri(source);
+    final jsonList = (_decodeJsonBody(resp.data) ?? const <dynamic>[]) as List;
 
     return jsonList
         .map((e) => ProtoSong.fromJson(e as Map<String, dynamic>))
@@ -28,11 +39,11 @@ class BankApi {
   }
 
   Future<List<Song>> getDetailsForSongs(Bank bank, List<String> uuids) async {
-    Uri source = Uri.parse('${bank.baseUrl}/song/${uuids.join(',')}');
+    final source = Uri.parse('${bank.baseUrl}/song/${uuids.join(',')}/');
 
-    final resp = await dio.getUri<String>(source);
+    final resp = await dio.getUri(source);
     try {
-      var songsJson = jsonDecode(resp.data!);
+      final songsJson = _decodeJsonBody(resp.data);
       if (songsJson is List) {
         List<Song> songs = [];
         for (Map songJson in songsJson) {
@@ -63,8 +74,10 @@ class BankApi {
 
   Future<DateTime?> getRemoteLastUpdated(Bank bank) async {
     try {
-      final resp = await dio.get<String>('${bank.baseUrl}/about');
-      final jsonData = jsonDecode(resp.data ?? "{}") as Map<String, dynamic>;
+      final resp = await dio.getUri(Uri.parse('${bank.baseUrl}/about/'));
+      final jsonData =
+          (_decodeJsonBody(resp.data) ?? const <String, dynamic>{})
+              as Map<String, dynamic>;
 
       if (jsonData.containsKey('lastUpdated')) {
         return DateTime.parse(jsonData['lastUpdated'] as String);

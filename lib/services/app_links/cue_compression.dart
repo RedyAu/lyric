@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:archive/archive.dart';
 import 'package:msgpack_dart/msgpack_dart.dart';
 
 /// Removes null values from a JSON map recursively to reduce size
@@ -56,7 +56,10 @@ String compressCueForUrl(Map<String, dynamic> cueJson) {
   final packed = serialize(cleaned);
 
   // Step 3: Aggressive gzip compression
-  final compressed = gzip.encode(packed);
+  final compressed = GZipEncoder().encode(packed);
+  if (compressed == null) {
+    throw Exception('A lista tömörítése sikertelen.');
+  }
 
   // Step 4: Base64URL encoding
   return base64Url.encode(compressed);
@@ -83,7 +86,7 @@ Map<String, dynamic> decompressCueFromUrl(String encoded) {
   final compressed = base64Url.decode(encoded);
 
   // Step 2: Gzip decompress
-  final packed = gzip.decode(compressed);
+  final packed = GZipDecoder().decodeBytes(compressed);
 
   // Step 3: MessagePack deserialize
   final dynamic deserialized = deserialize(Uint8List.fromList(packed));

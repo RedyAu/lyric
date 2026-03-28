@@ -10,6 +10,22 @@
 1. Run `dart run build_runner build` for generated code (drift, riverpod)
 1. Run `flutter run` to build and run the app
 
+#### Flutter web
+
+1. Run `dart run tool/prepare_web.dart` to generate Drift's web worker and copy `sqlite3.wasm`
+1. Run `flutter run -d chrome` for local web development
+1. Run `flutter build web --release --base-href /web/` to build the production bundle used by Pages
+
+#### GitHub Pages deployment
+
+The `Deploy Web` workflow in this repository builds the Flutter web app and syncs the output to `reformatus/app.sofarkotta.hu` under `docs/web`.
+
+Required repository secret in `reformatus/lyric`:
+
+1. `APP_SOFARKOTTA_HU_DEPLOY_TOKEN`
+
+The token must have permission to push to `reformatus/app.sofarkotta.hu`.
+
 #### Contributing
 
 As the project and the architecture is still in the early stages, please contact us before starting any contrubutions.

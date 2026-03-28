@@ -1,5 +1,4 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'app_config.dart';
@@ -30,12 +29,19 @@ final AppConfig appConfig = AppConfig(
 );
 
 String? get storeLinkForCurrentPlatform {
-  if (Platform.isAndroid) {
-    return appConfig.androidStoreUrl;
-  }
-  if (Platform.isIOS) {
-    return appConfig.iosStoreUrl;
+  if (kIsWeb) {
+    return null;
   }
 
-  return null;
+  switch (defaultTargetPlatform) {
+    case TargetPlatform.android:
+      return appConfig.androidStoreUrl;
+    case TargetPlatform.iOS:
+      return appConfig.iosStoreUrl;
+    case TargetPlatform.fuchsia:
+    case TargetPlatform.linux:
+    case TargetPlatform.macOS:
+    case TargetPlatform.windows:
+      return null;
+  }
 }

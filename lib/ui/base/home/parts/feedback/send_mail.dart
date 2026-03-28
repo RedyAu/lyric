@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:mailto/mailto.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -28,20 +29,22 @@ ${stackTrace?.split('\n').take(6).join('\n')}
 
   Map? platformInfo;
   try {
-    platformInfo = {
-      //'environment': Platform.environment,
-      'executable:': Platform.executable,
-      'executableArguments': Platform.executableArguments,
-      'localHostname': Platform.localHostname,
-      'localeName': Platform.localeName,
-      'numberOfProcessors': Platform.numberOfProcessors,
-      'operatingSystem': Platform.operatingSystem,
-      'operatingSystemVersion': Platform.operatingSystemVersion,
-      'packageConfig': Platform.packageConfig,
-      'resolvedExecutable': Platform.resolvedExecutable,
-      'script': Platform.script,
-      'dart-version': Platform.version,
-    };
+    platformInfo = kIsWeb
+        ? {'platform': 'web'}
+        : {
+            //'environment': Platform.environment,
+            'executable:': Platform.executable,
+            'executableArguments': Platform.executableArguments,
+            'localHostname': Platform.localHostname,
+            'localeName': Platform.localeName,
+            'numberOfProcessors': Platform.numberOfProcessors,
+            'operatingSystem': Platform.operatingSystem,
+            'operatingSystemVersion': Platform.operatingSystemVersion,
+            'packageConfig': Platform.packageConfig,
+            'resolvedExecutable': Platform.resolvedExecutable,
+            'script': Platform.script,
+            'dart-version': Platform.version,
+          };
   } catch (_) {}
 
   final String subject = errorMessage == null
