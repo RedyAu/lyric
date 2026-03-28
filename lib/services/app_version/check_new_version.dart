@@ -1,11 +1,9 @@
-import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../config/config.dart';
 import '../../data/log/logger.dart';
 import '../http/dio_provider.dart';
-import '../ui/messenger_service.dart';
 
 part 'check_new_version.g.dart';
 
@@ -38,14 +36,7 @@ Future<VersionInfo?> checkNewVersion(Ref ref) async {
 
     if (!latest.isNeverVersionThan(current)) return null;
 
-    messengerService.showSnackBar(
-      SnackBar(
-        content: Text('Új verzió elérhető!'),
-        backgroundColor: Colors.blue[700],
-        showCloseIcon: true,
-        duration: Duration(seconds: 10),
-      ),
-    );
+    log.warning('Új verzió elérhető!');
 
     return (
       versionNumber: latestVersion,

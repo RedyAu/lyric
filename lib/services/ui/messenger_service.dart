@@ -8,6 +8,8 @@ class MessengerService {
     : scaffoldMessengerKey =
           scaffoldMessengerKey ?? GlobalKey<ScaffoldMessengerState>();
 
+  int _snackBarSerial = 0;
+
   final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey;
 
   ScaffoldMessengerState? get state => scaffoldMessengerKey.currentState;
@@ -15,6 +17,26 @@ class MessengerService {
 
   void showSnackBar(SnackBar snackBar) {
     state?.showSnackBar(snackBar);
+  }
+
+  void showSnackBarReplacingCurrent(
+    SnackBar snackBar, {
+    Duration? forceHideAfter,
+  }) {
+    _snackBarSerial++;
+    final thisSnackBarSerial = _snackBarSerial;
+
+    state?.removeCurrentSnackBar(reason: SnackBarClosedReason.remove);
+    showSnackBar(snackBar);
+
+    if (forceHideAfter != null) {
+      Future<void>.delayed(forceHideAfter, () {
+        if (thisSnackBarSerial != _snackBarSerial) {
+          return;
+        }
+        state?.hideCurrentSnackBar(reason: SnackBarClosedReason.timeout);
+      });
+    }
   }
 
   void clearBanners() {

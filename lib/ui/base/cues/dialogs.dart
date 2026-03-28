@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../common/confirm_dialog.dart';
 
 import '../../../data/cue/cue.dart';
 import '../../../services/cue/write_cue.dart';
 
-class EditCueDialog extends StatefulWidget {
+class EditCueDialog extends ConsumerStatefulWidget {
   /// If cue is null, dialog adds new cue
   const EditCueDialog({this.cue, this.prefilledTitle, super.key});
 
@@ -16,7 +17,7 @@ class EditCueDialog extends StatefulWidget {
   EditCueDialogState createState() => EditCueDialogState();
 }
 
-class EditCueDialogState extends State<EditCueDialog> {
+class EditCueDialogState extends ConsumerState<EditCueDialog> {
   @override
   void initState() {
     _titleController = TextEditingController(
@@ -48,11 +49,13 @@ class EditCueDialogState extends State<EditCueDialog> {
         setState(() => isSaving = true);
 
         if (widget.cue != null) {
-          updateCueMetadata(
+          await updateCueMetadata(
             widget.cue!,
             title: _titleController.text,
             description: _descriptionController.text,
+            ref: ref,
           );
+          if (!mounted) return;
           // ignore: use_build_context_synchronously
           context.pop();
         } else {

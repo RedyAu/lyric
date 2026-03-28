@@ -86,7 +86,7 @@ void main() {
     expect(find.text('auto dismiss warning'), findsNothing);
   });
 
-  testWidgets('warning snackbar has left-side close button that dismisses it', (
+  testWidgets('warning snackbar has right-side close button that dismisses it', (
     tester,
   ) async {
     final harness = await _pumpApp(tester);
@@ -103,7 +103,7 @@ void main() {
 
     final closeButtonDx = tester.getTopLeft(closeButton).dx;
     final messageDx = tester.getTopLeft(message).dx;
-    expect(closeButtonDx, lessThan(messageDx));
+    expect(closeButtonDx, greaterThan(messageDx));
 
     await tester.tap(closeButton, warnIfMissed: false);
     await tester.pumpAndSettle();

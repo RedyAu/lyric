@@ -1,14 +1,9 @@
 import 'package:app_links/app_links.dart';
-import 'package:flutter/material.dart';
 import '../../config/config.dart';
-import '../../main.dart';
 import '../cue/import_from_link.dart';
-import '../../ui/common/error/card.dart';
-import '../../ui/common/error/dialog.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../data/log/logger.dart';
-import '../ui/messenger_service.dart';
 
 part 'app_links.g.dart';
 
@@ -82,35 +77,7 @@ Stream<String> shouldNavigate(Ref ref) async* {
           continue;
       }
     } catch (e, s) {
-      if (messengerService.state == null) {
-        rethrow;
-      }
-      messengerService.showSnackBar(
-        SnackBar(
-          content: Text('Hiba egy link megnyitása közben'),
-          showCloseIcon: true,
-          duration: Duration(seconds: 10),
-          backgroundColor: Colors.red,
-          action: SnackBarAction(
-            label: 'Részletek',
-            onPressed: () {
-              final NavigatorState? navigator = appNavigatorKey.currentState;
-              if (navigator != null) {
-                showDialog(
-                  context: navigator.context,
-                  builder: (context) => ErrorDialog(
-                    type: LErrorType.error,
-                    title: 'Hiba egy link megnyitása közben',
-                    icon: Icons.link_off,
-                    message: e.toString(),
-                    stack: s.toString(),
-                  ),
-                );
-              }
-            },
-          ),
-        ),
-      );
+      log.severe('Hiba egy link megnyitása közben', e, s);
     }
   }
 }

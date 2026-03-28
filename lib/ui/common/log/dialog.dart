@@ -2,9 +2,9 @@ import 'package:fading_edge_scrollview/fading_edge_scrollview.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:logging/logging.dart';
 
 import '../../../data/log/provider.dart';
+import '../../../data/log/level_style.dart';
 import '../../../config/config.dart';
 import '../centered_hint.dart';
 
@@ -89,35 +89,11 @@ class LogMessageCard extends ConsumerWidget {
 
   const LogMessageCard({super.key, required this.message});
 
-  IconData _getIconForLevel(Level level) {
-    if (level == Level.SEVERE) {
-      return Icons.error_outline;
-    } else if (level == Level.WARNING) {
-      return Icons.warning_amber_outlined;
-    } else if (level == Level.INFO) {
-      return Icons.info_outline;
-    } else {
-      return Icons.message_outlined;
-    }
-  }
-
-  Color _getColorForLevel(Level level) {
-    if (level == Level.SEVERE) {
-      return Colors.red;
-    } else if (level == Level.WARNING) {
-      return Colors.orange;
-    } else if (level == Level.INFO) {
-      return Colors.blue;
-    } else {
-      return Colors.grey;
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final record = message.record;
     final level = record.level;
-    final color = _getColorForLevel(level);
+    final color = colorForLogLevel(level);
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -138,7 +114,7 @@ class LogMessageCard extends ConsumerWidget {
             children: [
               ListTile(
                 leading: Icon(
-                  _getIconForLevel(level),
+                  iconForLogLevel(level),
                   color: color.withAlpha(200),
                 ),
                 title: Text(

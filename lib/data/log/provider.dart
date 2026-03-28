@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import 'level_style.dart';
 import '../../main.dart';
 import '../../services/ui/messenger_service.dart';
 import '../../ui/common/log/dialog.dart';
@@ -18,18 +19,6 @@ class ShowLogLevel extends _$ShowLogLevel {
 
 @Riverpod(keepAlive: true)
 class LogMessages extends _$LogMessages {
-  int _warningSnackBarSerial = 0;
-
-  Color _snackBarColorForLevel(Level level) {
-    if (level.value >= Level.SEVERE.value) {
-      return Colors.red;
-    }
-    if (level.value >= Level.WARNING.value) {
-      return Colors.orange;
-    }
-    return Colors.blue;
-  }
-
   @override
   List<LogMessage> build() {
     return [];
@@ -39,27 +28,20 @@ class LogMessages extends _$LogMessages {
     state.add(LogMessage(record));
     if (record.level.value >= Level.WARNING.value) {
       final messenger = ref.read(messengerServiceProviderProvider);
-      _warningSnackBarSerial++;
-      final thisSnackBarSerial = _warningSnackBarSerial;
-      messenger.state?.removeCurrentSnackBar(
-        reason: SnackBarClosedReason.remove,
-      );
-      messenger.showSnackBar(
+      messenger.showSnackBarReplacingCurrent(
         SnackBar(
+          showCloseIcon: true,
           duration: const Duration(seconds: 6),
           content: Row(
             children: [
-              IconButton(
-                icon: const Icon(Icons.close),
-                tooltip: 'Bezárás',
-                onPressed: () {
-                  messenger.state?.hideCurrentSnackBar();
-                },
+              Icon(
+                iconForLogLevel(record.level),
+                color: colorForLogLevel(record.level),
               ),
+              const SizedBox(width: 12),
               Expanded(child: Text(record.message)),
             ],
           ),
-          backgroundColor: _snackBarColorForLevel(record.level),
           action: SnackBarAction(
             label: 'Napló',
             onPressed: () {
@@ -74,16 +56,8 @@ class LogMessages extends _$LogMessages {
             },
           ),
         ),
+        forceHideAfter: const Duration(seconds: 6),
       );
-
-      Future<void>.delayed(const Duration(seconds: 6), () {
-        if (thisSnackBarSerial != _warningSnackBarSerial) {
-          return;
-        }
-        messenger.state?.hideCurrentSnackBar(
-          reason: SnackBarClosedReason.timeout,
-        );
-      });
     }
     ref.notifyListeners();
   }

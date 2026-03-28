@@ -57,7 +57,7 @@ class _AddToCueSearchState extends ConsumerState<AddToCueSearch> {
       );
       await addSlideToCue(songSlide, cue, ref: ref);
 
-      messengerService.showSnackBar(
+      messengerService.showSnackBarReplacingCurrent(
         SnackBar(
           showCloseIcon: true,
           content: Text(
@@ -70,6 +70,7 @@ class _AddToCueSearchState extends ConsumerState<AddToCueSearch> {
           ),
           duration: const Duration(seconds: 5),
         ),
+        forceHideAfter: const Duration(seconds: 5),
       );
     }
 

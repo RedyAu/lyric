@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../data/log/logger.dart';
 import '../error/card.dart';
 import '../hero_dialog_route.dart';
 import 'fullscreen_qr_dialog.dart';
@@ -352,15 +353,8 @@ class _ShareDialogState extends State<ShareDialog> {
       await SharePlus.instance.share(
         ShareParams(uri: widget.sharedLink, subject: widget.sharedTitle),
       );
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Megosztás közben hiba lépett fel: $e'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
+    } catch (e, s) {
+      log.warning('Megosztás közben hiba lépett fel', e, s);
     }
   }
 }
