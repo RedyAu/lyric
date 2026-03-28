@@ -69,7 +69,7 @@ class _CuePresentMusicianPageState extends ConsumerState<CuePresentMusicianPage>
     final slideIndex = ref.watch(slideIndexProvider);
     final canNavigatePrevious = ref.watch(canNavigatePreviousProvider);
     final canNavigateNext = ref.watch(canNavigateNextProvider);
-    ref.watch(currentSlideProvider);
+    ref.watch(currentSlideUuidProvider);
 
     return Scaffold(
       body: SafeArea(

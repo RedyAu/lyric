@@ -26,7 +26,7 @@ class _ActionsDrawerState extends ConsumerState<ActionsDrawer> {
 
   @override
   Widget build(BuildContext context) {
-    final slide = ref.watch(currentSlideProvider);
+    final slide = ref.watch(currentSlideSnapshotProvider).slide;
     return FadingEdgeScrollView.fromSingleChildScrollView(
       child: SingleChildScrollView(
         controller: scrollController,

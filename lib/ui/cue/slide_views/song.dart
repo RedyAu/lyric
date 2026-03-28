@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/cue/slide.dart';
-import '../../common/error/card.dart';
+import '../session/session_provider.dart';
 import '../../song/lyrics/view.dart';
 import '../../song/sheet/view.dart';
 import '../../song/state.dart';
@@ -58,25 +58,20 @@ class SongSlideView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final viewType = ref.watch(viewTypeForProvider(songSlide.song, songSlide));
+    final currentSlide = switch (ref
+        .watch(slideSnapshotProvider(songSlide.uuid))
+        .slide) {
+      SongSlide currentSlide => currentSlide,
+      _ => songSlide,
+    };
 
-    return viewType.when(
-      data: (viewType) => switch (viewType) {
-        SongViewType.svg => SheetView.svg(songSlide.song),
-        SongViewType.pdf => SheetView.pdf(songSlide.song),
-        SongViewType.lyrics ||
-        SongViewType.chords => LyricsView(songSlide.song, songSlide: songSlide),
-      },
-      error: (e, s) => Center(
-        child: LErrorCard(
-          type: LErrorType.error,
-          title: 'Hiba a dalnézet kiválasztása közben!',
-          icon: Icons.error,
-          message: e.toString(),
-          stack: s.toString(),
-        ),
+    return switch (currentSlide.viewType) {
+      SongViewType.svg => SheetView.svg(currentSlide.song),
+      SongViewType.pdf => SheetView.pdf(currentSlide.song),
+      SongViewType.lyrics || SongViewType.chords => LyricsView(
+        currentSlide.song,
+        songSlide: currentSlide,
       ),
-      loading: SizedBox.shrink,
-    );
+    };
   }
 }

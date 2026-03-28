@@ -15,25 +15,30 @@ class SlideList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final currentSlide = ref.watch(currentSlideProvider);
-    final slides = ref.watch(activeCueSessionProvider).value?.slides ?? [];
+    final currentSlideUuid = ref.watch(currentSlideUuidProvider);
+    final slideUuids = ref.watch(slideDeckProvider).slideUuids;
 
-    if (slides.isEmpty) return CenteredHint('Üres lista');
+    if (slideUuids.isEmpty) return CenteredHint('Üres lista');
 
     return ReorderableListView.builder(
-      itemCount: slides.length,
+      itemCount: slideUuids.length,
       buildDefaultDragHandles: false,
       onReorder: (int from, int to) {
         ref.read(activeCueSessionProvider.notifier).reorderSlides(from, to);
       },
       itemBuilder: (context, index) {
-        final slide = slides[index];
+        final slideUuid = slideUuids[index];
+        final slide = ref.watch(slideSnapshotProvider(slideUuid)).slide;
+
+        if (slide == null) {
+          return SizedBox(key: ValueKey('missing-slide-$slideUuid'));
+        }
 
         return switch (slide) {
           SongSlide songSlide => SongSlideTile(
             songSlide,
             index,
-            key: ValueKey(songSlide.hashCode),
+            key: ValueKey(songSlide.uuid),
             selectCallback: () => ref
                 .read(activeCueSessionProvider.notifier)
                 .goToSlide(slide.uuid),
@@ -48,19 +53,19 @@ class SlideList extends ConsumerWidget {
                     .removeSlide(slide.uuid);
               },
             ),
-            isCurrent: currentSlide == slide,
+            isCurrent: currentSlideUuid == slide.uuid,
           ),
           UnknownTypeSlide unknownSlide => UnknownTypeSlideTile(
             unknownSlide,
             index,
-            key: ValueKey(unknownSlide.hashCode),
+            key: ValueKey(unknownSlide.uuid),
             selectCallback: () => ref
                 .read(activeCueSessionProvider.notifier)
                 .goToSlide(slide.uuid),
             removeCallback: () => ref
                 .read(activeCueSessionProvider.notifier)
                 .removeSlide(slide.uuid),
-            isCurrent: currentSlide == slide,
+            isCurrent: currentSlideUuid == slide.uuid,
           ),
         };
       },

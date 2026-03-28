@@ -29,11 +29,8 @@ abstract class CueSource {
   /// Fetch cue metadata
   Future<Cue> fetchCue();
 
-  /// Revive slides from cue's JSON content into domain objects
-  Future<List<Slide>> reviveSlides(Cue cue);
-
-  /// Persist slide changes to the source
-  Future<void> writeSlides(List<Slide> slides);
+  /// Persist the current in-memory cue state to the source.
+  Future<void> persistCue(Cue cue);
 
   /// Stream of external changes (for remote: other devices' edits)
   /// Local source returns empty stream since we control all writes

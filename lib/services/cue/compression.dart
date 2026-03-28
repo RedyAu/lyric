@@ -4,6 +4,35 @@ import 'dart:typed_data';
 
 import 'package:msgpack_dart/msgpack_dart.dart';
 
+Map<String, dynamic> _withShortSongUuids(Map<String, dynamic> cueJson) {
+  final result = Map<String, dynamic>.from(cueJson);
+  final content = result['content'];
+
+  if (content is List) {
+    result['content'] = content.map((slideEntry) {
+      if (slideEntry is! Map) return slideEntry;
+
+      final slide = Map<String, dynamic>.from(slideEntry);
+      if (slide['slideType'] != 'song') return slide;
+
+      final song = slide['song'];
+      if (song is! Map) return slide;
+
+      final songMap = Map<String, dynamic>.from(song);
+      final uuid = songMap['uuid'];
+      if (uuid is String && uuid.isNotEmpty) {
+        final dashIndex = uuid.indexOf('-');
+        songMap['uuid'] = dashIndex == -1 ? uuid : uuid.substring(0, dashIndex);
+      }
+
+      slide['song'] = songMap;
+      return slide;
+    }).toList();
+  }
+
+  return result;
+}
+
 /// Removes null values from a JSON map recursively to reduce size
 Map<String, dynamic> _removeNulls(Map<String, dynamic> json) {
   final result = <String, dynamic>{};
@@ -49,16 +78,19 @@ Map<String, dynamic> _ensureKeys(Map json, List<String> expectedKeys) {
 /// 3. Compress with gzip
 /// 4. Encode as base64url for URL safety
 String compressCueForUrl(Map<String, dynamic> cueJson) {
-  // Step 1: Remove nulls
-  final cleaned = _removeNulls(cueJson);
+  // Step 1: Replace full song UUIDs with their first segment.
+  final shortened = _withShortSongUuids(cueJson);
 
-  // Step 2: MessagePack serialization
+  // Step 2: Remove nulls
+  final cleaned = _removeNulls(shortened);
+
+  // Step 3: MessagePack serialization
   final packed = serialize(cleaned);
 
-  // Step 3: Gzip compression
+  // Step 4: Gzip compression
   final compressed = gzip.encode(packed);
 
-  // Step 4: Base64URL encoding
+  // Step 5: Base64URL encoding
   return base64Url.encode(compressed);
 }
 

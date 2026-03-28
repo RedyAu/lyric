@@ -39,44 +39,89 @@ Future<Cue> insertCueFromJson({required Map json}) {
       );
 }
 
-Future<Cue> updateCueFromJson({required Map json}) async {
-  return (await (db.update(
-        db.cues,
-      )..where((c) => c.uuid.equals(json["uuid"]))).writeReturning(
-        CuesCompanion(
-          title: Value(json["title"]),
-          description: Value(json["description"]),
-          cueVersion: Value(json["cueVersion"]),
-          content: Value(
-            (json["content"] as List).map((e) => e as Map).toList(),
-          ),
-        ),
-      ))
-      .first;
-}
+Future<Cue> updateCueFromJson({
+  required Map json,
+  ProviderContainer? container,
+  String? initialSlideUuid,
+}) async {
+  final cue =
+      (await (db.update(
+            db.cues,
+          )..where((c) => c.uuid.equals(json["uuid"]))).writeReturning(
+            CuesCompanion(
+              title: Value(json["title"]),
+              description: Value(json["description"]),
+              cueVersion: Value(json["cueVersion"]),
+              content: Value(
+                (json["content"] as List).map((e) => e as Map).toList(),
+              ),
+            ),
+          ))
+          .first;
 
-Future updateCueMetadata(Cue cue, {String? title, String? description}) {
-  return (db.update(db.cues)..where((c) => c.id.equals(cue.id))).write(
-    CuesCompanion(
-      title: Value.absentIfNull(title),
-      description: Value.absentIfNull(description),
-    ),
+  return reloadOpenCueSessionIfNeeded(
+    updatedCue: cue,
+    container: container,
+    initialSlideUuid: initialSlideUuid,
   );
 }
 
-/// Normally updates DB to match current object's state.
-/// When supplied with `slides`, content gets overwritten.
-///
-/// NOTE: When working with the active cue session, prefer using
-/// ActiveCueSession.updateSlide/addSlide/etc. which handle debouncing.
-/// This function is for direct DB writes (e.g., from session provider).
-Future updateCueSlides(Cue cue, [List<Slide>? slides]) async {
-  if (slides != null) {
-    cue.content = Cue.getContentMapFromSlides(slides);
+Future<Cue> reloadOpenCueSessionIfNeeded({
+  required Cue updatedCue,
+  ProviderContainer? container,
+  String? initialSlideUuid,
+}) async {
+  final session = container?.read(activeCueSessionProvider).value;
+  if (container != null &&
+      session != null &&
+      session.cue.uuid == updatedCue.uuid) {
+    await container
+        .read(activeCueSessionProvider.notifier)
+        .load(
+          updatedCue.uuid,
+          initialSlideUuid: initialSlideUuid ?? session.currentSlideUuid,
+          forceReload: true,
+        );
+
+    final reloadedSession = container.read(activeCueSessionProvider).value;
+    if (reloadedSession != null &&
+        reloadedSession.cue.uuid == updatedCue.uuid) {
+      return reloadedSession.cue;
+    }
   }
 
+  return updatedCue;
+}
+
+Future updateCueMetadata(
+  Cue cue, {
+  String? title,
+  String? description,
+  WidgetRef? ref,
+}) async {
+  final session = ref?.read(activeCueSessionProvider).value;
+  if (ref != null && session != null && session.cue.uuid == cue.uuid) {
+    ref
+        .read(activeCueSessionProvider.notifier)
+        .updateMetadata(title: title, description: description);
+    return;
+  }
+
+  cue.updateMetadata(title: title, description: description);
+  await writeCue(cue);
+}
+
+/// Persist the current state of a cue.
+///
+/// This writes both metadata and serialized content from the same Cue object.
+Future writeCue(Cue cue) async {
   await (db.update(db.cues)..where((c) => c.uuid.equals(cue.uuid))).write(
-    CuesCompanion(content: Value(cue.content)),
+    CuesCompanion(
+      title: Value(cue.title),
+      description: Value(cue.description),
+      cueVersion: Value(cue.cueVersion),
+      content: Value(cue.content),
+    ),
   );
 }
 
@@ -101,8 +146,8 @@ Future<void> addSlideToCue(
         .addSlide(slide, atIndex: atIndex);
   } else {
     // Inactive cue: direct DB write
-    cue.content.insert(atIndex ?? cue.content.length, slide.toJson());
-    await updateCueSlides(cue);
+    cue.addSlide(slide, atIndex: atIndex);
+    await writeCue(cue);
   }
 }
 

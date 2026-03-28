@@ -13,7 +13,7 @@ abstract class BackgroundTask {
   Object? _lastError;
   StackTrace? _lastErrorStackTrace;
 
-  String get deduplicationKey => '${runtimeType}:${identityHashCode(this)}';
+  String get deduplicationKey => '$runtimeType:${identityHashCode(this)}';
 
   String get title;
   String get subtitle;

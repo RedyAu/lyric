@@ -31,7 +31,7 @@ class MobileBottomBar extends ConsumerWidget {
     if (!viewTypeAsync.hasValue) return SizedBox.shrink();
     final viewType = viewTypeAsync.requireValue;
 
-    final transpose = ref.watch(transposeStateForProvider(song, null));
+    final transpose = ref.watch(transposeStateForProvider(song));
 
     return SizedBox(
       height: 50,

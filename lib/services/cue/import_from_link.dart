@@ -1,11 +1,13 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/cue/cue.dart';
 import '../../main.dart';
 import '../../ui/common/confirm_dialog.dart';
 import '../cue/from_uuid.dart';
+import '../song/from_uuid.dart';
 import '../cue/write_cue.dart';
 import 'compression.dart';
 
@@ -38,10 +40,32 @@ Future<CueImportResult> importCueFromCompressedData(
   Map<String, String> queryParameters,
 ) async {
   final json = decompressCueFromUrl(encodedData);
-  final cue = await _importCueJson(json);
+  await _expandShortSongUuids(json);
+  final cue = await _importCueJson(
+    json,
+    initialSlideUuid: queryParameters['slide'],
+  );
   final slideUuid = queryParameters['slide'];
 
   return CueImportResult(cue, slideUuid);
+}
+
+Future<void> _expandShortSongUuids(Map<String, dynamic> cueJson) async {
+  final content = cueJson['content'];
+  if (content is! List) return;
+
+  for (final slideEntry in content) {
+    if (slideEntry is! Map) continue;
+    if (slideEntry['slideType'] != 'song') continue;
+
+    final song = slideEntry['song'];
+    if (song is! Map) continue;
+
+    final shortUuid = song['uuid'];
+    if (shortUuid is! String || shortUuid.isEmpty) continue;
+
+    song['uuid'] = await resolveSongUuidFromPrefix(shortUuid);
+  }
 }
 
 /// Imports a cue from plain JSON in a deep link (cueJson endpoint - backward compatible)
@@ -55,7 +79,10 @@ Future<CueImportResult> importCueFromJson(
   Map<String, String> queryParameters,
 ) async {
   final json = jsonDecode(jsonString);
-  final cue = await _importCueJson(json);
+  final cue = await _importCueJson(
+    json,
+    initialSlideUuid: queryParameters['slide'],
+  );
   final slideUuid = queryParameters['slide'];
 
   return CueImportResult(cue, slideUuid);
@@ -65,7 +92,7 @@ Future<CueImportResult> importCueFromJson(
 ///
 /// Checks if cue already exists and shows confirmation dialog if so.
 /// Otherwise inserts as new cue.
-Future<Cue> _importCueJson(Map json) async {
+Future<Cue> _importCueJson(Map json, {String? initialSlideUuid}) async {
   Cue? existingCue = await dbWatchCueWithUuid(json['uuid']).first;
 
   if (existingCue == null) {
@@ -74,6 +101,9 @@ Future<Cue> _importCueJson(Map json) async {
   } else {
     // Existing cue - ask user if they want to overwrite
     final NavigatorState? navigator = appNavigatorKey.currentState;
+    final ProviderContainer? container = navigator == null
+        ? null
+        : ProviderScope.containerOf(navigator.context, listen: false);
 
     Cue cue = existingCue;
 
@@ -85,7 +115,11 @@ Future<Cue> _importCueJson(Map json) async {
         actionLabel: 'Felülírás',
         actionIcon: Icons.edit_note,
         actionOnPressed: () async {
-          cue = await updateCueFromJson(json: json);
+          cue = await updateCueFromJson(
+            json: json,
+            container: container,
+            initialSlideUuid: initialSlideUuid,
+          );
         },
       );
     }

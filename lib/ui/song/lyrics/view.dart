@@ -11,6 +11,7 @@ import '../../../data/song/transpose.dart';
 import '../../../services/key/get_transposed.dart';
 import '../../../services/preferences/providers/lyrics_view_style.dart';
 import '../../../services/song/verse_tag_pretty.dart';
+import '../../cue/session/session_provider.dart';
 import '../../common/error/card.dart';
 import '../transpose/state.dart';
 
@@ -26,9 +27,19 @@ class LyricsView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    SongTranspose transpose = ref.watch(
-      transposeStateForProvider(song, songSlide),
-    );
+    final currentSongSlide = switch (songSlide) {
+      null => null,
+      final SongSlide cueSongSlide => switch (ref
+          .watch(slideSnapshotProvider(cueSongSlide.uuid))
+          .slide) {
+        SongSlide currentSlide => currentSlide,
+        _ => cueSongSlide,
+      },
+    };
+
+    SongTranspose transpose = currentSongSlide != null
+        ? currentSongSlide.transpose ?? SongTranspose()
+        : ref.watch(transposeStateForProvider(song));
     final lyricsViewStyle = ref.watch(lyricsViewStylePreferencesProvider);
 
     return Material(

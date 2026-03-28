@@ -31,14 +31,144 @@ class Cue extends Insertable<Cue> {
   String description;
   int cueVersion;
 
-  List<Map> content;
+  final List<Map> _serializedContent;
+  List<Slide>? _revivedSlides;
 
-  Future<List<Slide>> getRevivedSlides() async {
-    return await Future.wait(content.map((e) => Slide.reviveFromJson(e, this)));
+  static List<Map> _copyContent(Iterable<Map> content) {
+    return content.map((entry) => Map<String, dynamic>.from(entry)).toList();
   }
 
-  static List<Map> getContentMapFromSlides(List<Slide> slides) {
-    return slides.map((s) => s.toJson()).toList();
+  bool get isRevived => _revivedSlides != null;
+
+  List<Map> get content => isRevived
+      ? getContentMapFromSlides(_revivedSlides!)
+      : _copyContent(_serializedContent);
+
+  List<Slide> get slides {
+    final slides = _revivedSlides;
+    if (slides == null) {
+      throw StateError('Cue slides accessed before revival.');
+    }
+    return List.unmodifiable(slides);
+  }
+
+  int get slideCount =>
+      isRevived ? _revivedSlides!.length : _serializedContent.length;
+
+  Future<List<Slide>> getRevivedSlides() async {
+    if (_revivedSlides != null) {
+      return slides;
+    }
+
+    final revived = await Future.wait(
+      _serializedContent.map(
+        (entry) => Slide.reviveFromJson(Map<String, dynamic>.from(entry), this),
+      ),
+    );
+    _revivedSlides = revived;
+    return slides;
+  }
+
+  static List<Map> getContentMapFromSlides(Iterable<Slide> slides) {
+    return slides
+        .map((slide) => Map<String, dynamic>.from(slide.toJson()))
+        .toList();
+  }
+
+  Slide? slideByUuid(String uuid) {
+    final slides = _revivedSlides;
+    if (slides == null) return null;
+    try {
+      return slides.firstWhere((slide) => slide.uuid == uuid);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool hasSlide(String slideUuid) {
+    final slides = _revivedSlides;
+    if (slides != null) {
+      return slides.any((slide) => slide.uuid == slideUuid);
+    }
+
+    return _serializedContent.any((entry) => entry['uuid'] == slideUuid);
+  }
+
+  void updateMetadata({String? title, String? description, int? cueVersion}) {
+    if (title != null) this.title = title;
+    if (description != null) this.description = description;
+    if (cueVersion != null) this.cueVersion = cueVersion;
+  }
+
+  void replaceMetadata(Cue cue) {
+    updateMetadata(
+      title: cue.title,
+      description: cue.description,
+      cueVersion: cue.cueVersion,
+    );
+  }
+
+  void replaceSlides(Iterable<Slide> slides) {
+    _revivedSlides = List<Slide>.from(slides);
+  }
+
+  void updateSlide(Slide updated) {
+    final slides = _revivedSlides;
+    if (slides != null) {
+      final index = slides.indexWhere((slide) => slide.uuid == updated.uuid);
+      if (index == -1) {
+        throw StateError('Cannot update missing slide: ${updated.uuid}');
+      }
+      slides[index] = updated;
+      return;
+    }
+
+    final index = _serializedContent.indexWhere(
+      (entry) => entry['uuid'] == updated.uuid,
+    );
+    if (index == -1) {
+      throw StateError('Cannot update missing slide: ${updated.uuid}');
+    }
+    _serializedContent[index] = Map<String, dynamic>.from(updated.toJson());
+  }
+
+  void addSlide(Slide slide, {int? atIndex}) {
+    final insertIndex = atIndex;
+    final slides = _revivedSlides;
+
+    if (slides != null) {
+      slides.insert(insertIndex ?? slides.length, slide);
+      return;
+    }
+
+    _serializedContent.insert(
+      insertIndex ?? _serializedContent.length,
+      Map<String, dynamic>.from(slide.toJson()),
+    );
+  }
+
+  void removeSlide(String slideUuid) {
+    final slides = _revivedSlides;
+    if (slides != null) {
+      slides.removeWhere((slide) => slide.uuid == slideUuid);
+      return;
+    }
+
+    _serializedContent.removeWhere((entry) => entry['uuid'] == slideUuid);
+  }
+
+  void reorderSlides(int oldIndex, int newIndex) {
+    final slides = _revivedSlides;
+    if (slides != null) {
+      final item = slides.removeAt(oldIndex);
+      final adjustedIndex = newIndex > oldIndex ? newIndex - 1 : newIndex;
+      slides.insert(adjustedIndex, item);
+      return;
+    }
+
+    final item = _serializedContent.removeAt(oldIndex);
+    final adjustedIndex = newIndex > oldIndex ? newIndex - 1 : newIndex;
+    _serializedContent.insert(adjustedIndex, item);
   }
 
   Cue(
@@ -47,8 +177,8 @@ class Cue extends Insertable<Cue> {
     this.title,
     this.description,
     this.cueVersion,
-    this.content,
-  );
+    List<Map> content,
+  ) : _serializedContent = _copyContent(content);
 
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {

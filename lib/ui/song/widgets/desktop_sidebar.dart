@@ -23,7 +23,7 @@ class DesktopSidebar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final viewTypeAsync = ref.watch(viewTypeForProvider(song, null));
-    final transpose = ref.watch(transposeStateForProvider(song, null));
+    final transpose = ref.watch(transposeStateForProvider(song));
 
     if (!viewTypeAsync.hasValue) return SizedBox.shrink();
 

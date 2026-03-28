@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart';
 
 import '../../../data/cue/cue.dart';
-import '../../../data/cue/slide.dart';
 import '../../../data/database.dart';
 import '../write_cue.dart';
 import 'cue_source.dart';
@@ -24,14 +23,8 @@ class LocalCueSource implements CueSource {
   }
 
   @override
-  Future<List<Slide>> reviveSlides(Cue cue) async {
-    return await cue.getRevivedSlides();
-  }
-
-  @override
-  Future<void> writeSlides(List<Slide> slides) async {
-    final cue = await fetchCue(); // Get fresh reference for write
-    await updateCueSlides(cue, slides);
+  Future<void> persistCue(Cue cue) async {
+    await writeCue(cue);
   }
 
   @override

@@ -31,11 +31,14 @@ class SongSlide extends Slide {
   String get preview => song.firstLine;
 
   static Future<SongSlide> reviveFromJson(Map json, Cue parent) async {
-    var songResult = await getSongForSlideJson(json['song']);
+    final songJson = Map<String, dynamic>.from(json['song'] as Map);
+    var songResult = await getSongForSlideJson(songJson);
 
     SongViewType viewType = SongViewType.fromString(json['viewType']);
     SongTranspose? transpose = json.containsKey('transpose')
-        ? SongTranspose.fromJson(json['transpose'])
+        ? SongTranspose.fromJson(
+            Map<String, dynamic>.from(json['transpose'] as Map),
+          )
         : null;
 
     SongSlide songSlide = SongSlide(

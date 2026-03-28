@@ -5,6 +5,7 @@ import '../state.dart';
 import '../../../data/cue/slide.dart';
 
 import '../../../data/song/song.dart';
+import '../../cue/session/session_provider.dart';
 import '../../../services/key/get_transposed.dart';
 import 'state.dart';
 
@@ -22,13 +23,41 @@ class TransposeResetButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final transpose = ref.watch(transposeStateForProvider(song, songSlide));
+    if (songSlide != null) {
+      final currentSongSlide = switch (ref
+          .watch(slideSnapshotProvider(songSlide!.uuid))
+          .slide) {
+        SongSlide currentSlide => currentSlide,
+        _ => songSlide!,
+      };
+      final transpose = currentSongSlide.transpose ?? SongTranspose();
+
+      if (transpose.semitones != 0 || transpose.capo != 0) {
+        return IconButton(
+          tooltip: 'Transzponálás visszaállítása',
+          onPressed: () => ref
+              .read(activeCueSessionProvider.notifier)
+              .updateSlide(
+                currentSongSlide.copyWith(
+                  transpose: SongTranspose(semitones: 0, capo: 0),
+                ),
+              ),
+          icon: Icon(Icons.replay),
+          iconSize: isCompact ? 18 : null,
+          visualDensity: VisualDensity.compact,
+        );
+      }
+
+      return SizedBox.shrink();
+    }
+
+    final transpose = ref.watch(transposeStateForProvider(song));
     if (transpose.semitones != 0 || transpose.capo != 0) {
       return IconButton(
         tooltip: 'Transzponálás visszaállítása',
-        onPressed: () => ref
-            .read(transposeStateForProvider(song, songSlide).notifier)
-            .reset(),
+        onPressed: () =>
+            ref.read(transposeStateForProvider(song).notifier).state =
+                SongTranspose(),
         icon: Icon(Icons.replay),
         iconSize: isCompact ? 18 : null,
         visualDensity: VisualDensity.compact,
@@ -47,7 +76,122 @@ class TransposeControls extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final transpose = ref.watch(transposeStateForProvider(song, songSlide));
+    if (songSlide != null) {
+      final currentSongSlide = switch (ref
+          .watch(slideSnapshotProvider(songSlide!.uuid))
+          .slide) {
+        SongSlide currentSlide => currentSlide,
+        _ => songSlide!,
+      };
+      final transpose = currentSongSlide.transpose ?? SongTranspose();
+
+      void updateTranspose(SongTranspose newTranspose) {
+        ref
+            .read(activeCueSessionProvider.notifier)
+            .updateSlide(currentSongSlide.copyWith(transpose: newTranspose));
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          sectionTitle(context, 'TRANSZPONÁLÁS'),
+          Row(
+            children: [
+              IconButton.filledTonal(
+                onPressed: () {
+                  int newSemitones = transpose.semitones - 1;
+                  if (newSemitones < -11) newSemitones = 0;
+                  updateTranspose(
+                    SongTranspose(
+                      semitones: newSemitones,
+                      capo: transpose.capo,
+                    ),
+                  );
+                },
+                icon: Icon(Icons.expand_more),
+              ),
+              Expanded(
+                child: Column(
+                  children: [
+                    Text(
+                      transpose.semitones.toString(),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: Theme.of(
+                          context,
+                        ).textTheme.bodyLarge!.fontSize,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton.filledTonal(
+                onPressed: () {
+                  int newSemitones = transpose.semitones + 1;
+                  if (newSemitones > 11) newSemitones = 0;
+                  updateTranspose(
+                    SongTranspose(
+                      semitones: newSemitones,
+                      capo: transpose.capo,
+                    ),
+                  );
+                },
+                icon: Icon(Icons.expand_less),
+              ),
+            ],
+          ),
+          sectionTitle(context, 'CAPO'),
+          Row(
+            children: [
+              IconButton.filledTonal(
+                onPressed: () {
+                  int newCapo = transpose.capo - 1;
+                  if (newCapo < 0) newCapo = 11;
+                  updateTranspose(
+                    SongTranspose(
+                      semitones: transpose.semitones,
+                      capo: newCapo,
+                    ),
+                  );
+                },
+                icon: Icon(Icons.remove),
+              ),
+              Expanded(
+                child: Column(
+                  children: [
+                    Text(
+                      transpose.capo.toString(),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: Theme.of(
+                          context,
+                        ).textTheme.bodyLarge!.fontSize,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton.filledTonal(
+                onPressed: () {
+                  int newCapo = transpose.capo + 1;
+                  if (newCapo > 11) newCapo = 0;
+                  updateTranspose(
+                    SongTranspose(
+                      semitones: transpose.semitones,
+                      capo: newCapo,
+                    ),
+                  );
+                },
+                icon: Icon(Icons.add),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    final transpose = ref.watch(transposeStateForProvider(song));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -58,9 +202,15 @@ class TransposeControls extends ConsumerWidget {
           children: [
             IconButton.filledTonal(
               onPressed: () {
-                ref
-                    .read(transposeStateForProvider(song, songSlide).notifier)
-                    .down();
+                final controller = ref.read(
+                  transposeStateForProvider(song).notifier,
+                );
+                var newSemitones = controller.state.semitones - 1;
+                if (newSemitones < -11) newSemitones = 0;
+                controller.state = SongTranspose(
+                  semitones: newSemitones,
+                  capo: controller.state.capo,
+                );
               },
               icon: Icon(Icons.expand_more),
             ),
@@ -79,9 +229,15 @@ class TransposeControls extends ConsumerWidget {
             ),
             IconButton.filledTonal(
               onPressed: () {
-                ref
-                    .read(transposeStateForProvider(song, songSlide).notifier)
-                    .up();
+                final controller = ref.read(
+                  transposeStateForProvider(song).notifier,
+                );
+                var newSemitones = controller.state.semitones + 1;
+                if (newSemitones > 11) newSemitones = 0;
+                controller.state = SongTranspose(
+                  semitones: newSemitones,
+                  capo: controller.state.capo,
+                );
               },
               icon: Icon(Icons.expand_less),
             ),
@@ -92,9 +248,15 @@ class TransposeControls extends ConsumerWidget {
           children: [
             IconButton.filledTonal(
               onPressed: () {
-                ref
-                    .read(transposeStateForProvider(song, songSlide).notifier)
-                    .removeCapo();
+                final controller = ref.read(
+                  transposeStateForProvider(song).notifier,
+                );
+                var newCapo = controller.state.capo - 1;
+                if (newCapo < 0) newCapo = 11;
+                controller.state = SongTranspose(
+                  semitones: controller.state.semitones,
+                  capo: newCapo,
+                );
               },
               icon: Icon(Icons.remove),
             ),
@@ -113,9 +275,15 @@ class TransposeControls extends ConsumerWidget {
             ),
             IconButton.filledTonal(
               onPressed: () {
-                ref
-                    .read(transposeStateForProvider(song, songSlide).notifier)
-                    .addCapo();
+                final controller = ref.read(
+                  transposeStateForProvider(song).notifier,
+                );
+                var newCapo = controller.state.capo + 1;
+                if (newCapo > 11) newCapo = 0;
+                controller.state = SongTranspose(
+                  semitones: controller.state.semitones,
+                  capo: newCapo,
+                );
               },
               icon: Icon(Icons.add),
             ),
@@ -147,9 +315,57 @@ class TransposeCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    SongTranspose transpose = ref.watch(
-      transposeStateForProvider(song, songSlide),
-    );
+    if (songSlide != null) {
+      final currentSongSlide = switch (ref
+          .watch(slideSnapshotProvider(songSlide!.uuid))
+          .slide) {
+        SongSlide currentSlide => currentSlide,
+        _ => songSlide!,
+      };
+      final transpose = currentSongSlide.transpose ?? SongTranspose();
+
+      if (currentSongSlide.viewType != SongViewType.chords) {
+        return SizedBox.shrink();
+      }
+
+      return ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: 250),
+        child: Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: EdgeInsets.all(8),
+            child: Column(
+              children: [
+                SizedBox(
+                  height: 30,
+                  child: Row(
+                    children: [
+                      Text(
+                        song.keyField != null
+                            ? getTransposedKey(
+                                song.keyField!,
+                                transpose.semitones,
+                              ).toString()
+                            : 'Hangnem',
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                      TransposeResetButton(
+                        song,
+                        songSlide: currentSongSlide,
+                        isCompact: false,
+                      ),
+                    ],
+                  ),
+                ),
+                TransposeControls(song, songSlide: currentSongSlide),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    SongTranspose transpose = ref.watch(transposeStateForProvider(song));
     final viewTypeAsync = ref.watch(viewTypeForProvider(song, songSlide));
 
     if (viewTypeAsync.value != SongViewType.chords) {

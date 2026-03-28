@@ -1,26 +1,19 @@
 import '../../../data/cue/cue.dart';
 import '../../../data/cue/slide.dart';
 
-/// Immutable state representing an active cue editing/viewing session
+/// Session wrapper around the single live Cue object currently being edited.
 class CueSession {
   final Cue cue;
-  final List<Slide> slides;
   final String? currentSlideUuid;
 
-  const CueSession({
-    required this.cue,
-    required this.slides,
-    this.currentSlideUuid,
-  });
+  const CueSession({required this.cue, this.currentSlideUuid});
+
+  List<Slide> get slides => cue.slides;
 
   /// Get the currently selected slide, if any
   Slide? get currentSlide {
     if (currentSlideUuid == null) return null;
-    try {
-      return slides.firstWhere((s) => s.uuid == currentSlideUuid);
-    } catch (_) {
-      return null;
-    }
+    return cue.slideByUuid(currentSlideUuid!);
   }
 
   /// Get the index of the current slide (null if none selected or not found)
@@ -37,53 +30,13 @@ class CueSession {
   bool get hasPrevious => (currentIndex ?? 0) > 0;
 
   /// Total number of slides
-  int get slideCount => slides.length;
-
-  /// Create copy with new slides list
-  CueSession withSlides(List<Slide> newSlides) => CueSession(
-    cue: cue,
-    slides: newSlides,
-    currentSlideUuid: currentSlideUuid,
-  );
+  int get slideCount => cue.slideCount;
 
   /// Create copy with different current slide
   CueSession withCurrentSlide(String? uuid) =>
-      CueSession(cue: cue, slides: slides, currentSlideUuid: uuid);
+      CueSession(cue: cue, currentSlideUuid: uuid);
 
-  /// Create copy with one slide replaced (matched by uuid)
-  CueSession withUpdatedSlide(Slide updated) {
-    final newSlides = slides
-        .map((s) => s.uuid == updated.uuid ? updated : s)
-        .toList();
-    return withSlides(newSlides);
-  }
-
-  /// Create copy with slide added at position
-  CueSession withAddedSlide(Slide slide, {int? atIndex}) {
-    final newSlides = [...slides];
-    newSlides.insert(atIndex ?? newSlides.length, slide);
-    return withSlides(newSlides);
-  }
-
-  /// Create copy with slide removed
-  CueSession withRemovedSlide(String slideUuid) {
-    final newSlides = slides.where((s) => s.uuid != slideUuid).toList();
-    return withSlides(newSlides);
-  }
-
-  /// Create copy with slides reordered
-  CueSession withReorderedSlides(int oldIndex, int newIndex) {
-    final newSlides = [...slides];
-    final item = newSlides.removeAt(oldIndex);
-    final adjustedIndex = newIndex > oldIndex ? newIndex - 1 : newIndex;
-    newSlides.insert(adjustedIndex, item);
-    return withSlides(newSlides);
-  }
-
-  /// Create copy with updated cue metadata
-  CueSession withCue(Cue newCue) => CueSession(
-    cue: newCue,
-    slides: slides,
-    currentSlideUuid: currentSlideUuid,
-  );
+  /// Create a new session wrapper after mutating the live cue object.
+  CueSession refreshed() =>
+      CueSession(cue: cue, currentSlideUuid: currentSlideUuid);
 }

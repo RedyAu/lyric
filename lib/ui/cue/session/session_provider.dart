@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:async';
 
-import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/cue/slide.dart';
 import '../../../data/log/logger.dart';
@@ -8,16 +10,13 @@ import '../../../services/cue/source/cue_source.dart';
 import '../../../services/cue/source/local_source.dart';
 import 'cue_session.dart';
 
-part 'session_provider.g.dart';
-
 /// The single source of truth for the currently active cue session.
 ///
 /// All slide mutations go through this provider, which handles:
 /// - Immutable state updates for immediate UI reactivity
 /// - Debounced writes to the underlying source (DB/remote)
 /// - External change integration (for future remote collaboration)
-@Riverpod(keepAlive: true)
-class ActiveCueSession extends _$ActiveCueSession {
+class ActiveCueSession extends AsyncNotifier<CueSession?> {
   CueSource? _source;
   Timer? _writeDebounce;
   StreamSubscription<CueSourceEvent>? _externalChangesSubscription;
@@ -41,10 +40,14 @@ class ActiveCueSession extends _$ActiveCueSession {
 
   /// Load a cue by UUID, optionally jumping to a specific slide.
   /// This is idempotent - calling with the same UUID returns early if already loaded.
-  Future<void> load(String uuid, {String? initialSlideUuid}) async {
+  Future<void> load(
+    String uuid, {
+    String? initialSlideUuid,
+    bool forceReload = false,
+  }) async {
     // Check if already loaded (avoid unnecessary reload)
     final current = state.value;
-    if (current != null && current.cue.uuid == uuid) {
+    if (!forceReload && current != null && current.cue.uuid == uuid) {
       // Already loaded - just update current slide if requested
       if (initialSlideUuid != null &&
           initialSlideUuid != current.currentSlideUuid) {
@@ -66,14 +69,18 @@ class ActiveCueSession extends _$ActiveCueSession {
       // Fetch cue metadata
       final cue = await _source!.fetchCue();
 
-      // Revival happens here, inside load
-      final slides = await _source!.reviveSlides(cue);
+      // Revival happens once here, then the same Cue object remains authoritative.
+      final slides = await cue.getRevivedSlides();
 
       // Determine initial slide
-      final initialUuid = initialSlideUuid ?? slides.firstOrNull?.uuid;
+      final initialUuid =
+          initialSlideUuid != null &&
+              slides.any((slide) => slide.uuid == initialSlideUuid)
+          ? initialSlideUuid
+          : slides.firstOrNull?.uuid;
 
       state = AsyncValue.data(
-        CueSession(cue: cue, slides: slides, currentSlideUuid: initialUuid),
+        CueSession(cue: cue, currentSlideUuid: initialUuid),
       );
 
       // Listen for external changes (relevant for future remote sources)
@@ -101,11 +108,17 @@ class ActiveCueSession extends _$ActiveCueSession {
 
     switch (event) {
       case SlidesChangedEvent(:final slides):
-        state = AsyncValue.data(session.withSlides(slides));
+        session.cue.replaceSlides(slides);
+        final currentSlideUuid =
+            slides.any((slide) => slide.uuid == session.currentSlideUuid)
+            ? session.currentSlideUuid
+            : slides.firstOrNull?.uuid;
+        state = AsyncValue.data(session.withCurrentSlide(currentSlideUuid));
       case CurrentSlideChangedEvent(:final slideUuid):
         state = AsyncValue.data(session.withCurrentSlide(slideUuid));
       case CueMetadataChangedEvent(:final cue):
-        state = AsyncValue.data(session.withCue(cue));
+        session.cue.replaceMetadata(cue);
+        state = AsyncValue.data(session.refreshed());
     }
   }
 
@@ -133,6 +146,7 @@ class ActiveCueSession extends _$ActiveCueSession {
   void goToSlide(String slideUuid) {
     final session = state.value;
     if (session == null) return;
+    if (session.currentSlideUuid == slideUuid) return;
 
     // Verify slide exists
     if (!session.slides.any((s) => s.uuid == slideUuid)) return;
@@ -161,13 +175,13 @@ class ActiveCueSession extends _$ActiveCueSession {
     if (session == null) return;
 
     // Verify slide exists
-    if (!session.slides.any((s) => s.uuid == updated.uuid)) {
+    if (!session.cue.hasSlide(updated.uuid)) {
       log.warning('Tried to update non-existent slide: ${updated.uuid}');
       return;
     }
 
-    // Immediate UI update (immutable)
-    state = AsyncValue.data(session.withUpdatedSlide(updated));
+    session.cue.updateSlide(updated);
+    state = AsyncValue.data(session.refreshed());
 
     // Debounced persistence
     _scheduleWrite();
@@ -178,12 +192,12 @@ class ActiveCueSession extends _$ActiveCueSession {
     final session = state.value;
     if (session == null) return;
 
-    final newSession = session.withAddedSlide(slide, atIndex: atIndex);
+    session.cue.addSlide(slide, atIndex: atIndex);
 
     // If no slide was selected, select the new one
     final finalSession = session.currentSlideUuid == null
-        ? newSession.withCurrentSlide(slide.uuid)
-        : newSession;
+        ? session.withCurrentSlide(slide.uuid)
+        : session.refreshed();
 
     state = AsyncValue.data(finalSession);
     _scheduleWrite();
@@ -208,11 +222,11 @@ class ActiveCueSession extends _$ActiveCueSession {
         }
       }
 
-      state = AsyncValue.data(
-        session.withCurrentSlide(newCurrentUuid).withRemovedSlide(slideUuid),
-      );
+      session.cue.removeSlide(slideUuid);
+      state = AsyncValue.data(session.withCurrentSlide(newCurrentUuid));
     } else {
-      state = AsyncValue.data(session.withRemovedSlide(slideUuid));
+      session.cue.removeSlide(slideUuid);
+      state = AsyncValue.data(session.refreshed());
     }
 
     _scheduleWrite();
@@ -223,7 +237,19 @@ class ActiveCueSession extends _$ActiveCueSession {
     final session = state.value;
     if (session == null) return;
 
-    state = AsyncValue.data(session.withReorderedSlides(oldIndex, newIndex));
+    session.cue.reorderSlides(oldIndex, newIndex);
+    state = AsyncValue.data(session.refreshed());
+    _scheduleWrite();
+  }
+
+  /// Update cue metadata through the same path as slide edits.
+  void updateMetadata({String? title, String? description}) {
+    final session = state.value;
+    if (session == null) return;
+    if (title == null && description == null) return;
+
+    session.cue.updateMetadata(title: title, description: description);
+    state = AsyncValue.data(session.refreshed());
     _scheduleWrite();
   }
 
@@ -241,7 +267,7 @@ class ActiveCueSession extends _$ActiveCueSession {
     if (session == null || _source == null) return;
 
     try {
-      await _source!.writeSlides(session.slides);
+      await _source!.persistCue(session.cue);
       log.fine('Lista mentve: ${session.cue.title}');
     } catch (e, s) {
       log.severe('Hiba lista mentése közben:', e, s);
@@ -257,31 +283,121 @@ class ActiveCueSession extends _$ActiveCueSession {
   }
 }
 
+final activeCueSessionProvider =
+    AsyncNotifierProvider<ActiveCueSession, CueSession?>(ActiveCueSession.new);
+
 // ============================================================
 // Helper Providers for UI Convenience
 // ============================================================
 
-/// Watch just the current slide (convenience for widgets that only need this)
-@riverpod
-Slide? currentSlide(Ref ref) {
-  return ref.watch(activeCueSessionProvider).value?.currentSlide;
+@immutable
+class CueSlideDeckState {
+  const CueSlideDeckState({required this.cueUuid, required this.slideUuids});
+
+  const CueSlideDeckState.empty() : this(cueUuid: '', slideUuids: const []);
+
+  factory CueSlideDeckState.fromSession(CueSession? session) {
+    if (session == null) return const CueSlideDeckState.empty();
+
+    return CueSlideDeckState(
+      cueUuid: session.cue.uuid,
+      slideUuids: session.slides.map((slide) => slide.uuid).toList(),
+    );
+  }
+
+  final String cueUuid;
+  final List<String> slideUuids;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is CueSlideDeckState &&
+        other.cueUuid == cueUuid &&
+        listEquals(other.slideUuids, slideUuids);
+  }
+
+  @override
+  int get hashCode => Object.hash(cueUuid, Object.hashAll(slideUuids));
 }
 
+@immutable
+class CueSlideSnapshot {
+  const CueSlideSnapshot(this.slide, this.revisionKey);
+
+  const CueSlideSnapshot.empty() : this(null, null);
+
+  factory CueSlideSnapshot.fromSlide(Slide? slide) {
+    return CueSlideSnapshot(
+      slide,
+      slide == null ? null : jsonEncode(slide.toJson()),
+    );
+  }
+
+  final Slide? slide;
+  final String? revisionKey;
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is CueSlideSnapshot && other.revisionKey == revisionKey;
+  }
+
+  @override
+  int get hashCode => Object.hash(slide?.uuid, revisionKey);
+}
+
+final slideDeckProvider = Provider<CueSlideDeckState>((ref) {
+  return ref.watch(
+    activeCueSessionProvider.select(
+      (sessionAsync) => CueSlideDeckState.fromSession(sessionAsync.value),
+    ),
+  );
+});
+
+final currentSlideUuidProvider = Provider<String?>((ref) {
+  return ref.watch(
+    activeCueSessionProvider.select(
+      (sessionAsync) => sessionAsync.value?.currentSlideUuid,
+    ),
+  );
+});
+
+final slideSnapshotProvider = Provider.family<CueSlideSnapshot, String>((
+  ref,
+  slideUuid,
+) {
+  return ref.watch(
+    activeCueSessionProvider.select(
+      (sessionAsync) => CueSlideSnapshot.fromSlide(
+        sessionAsync.value?.cue.slideByUuid(slideUuid),
+      ),
+    ),
+  );
+});
+
+final currentSlideSnapshotProvider = Provider<CueSlideSnapshot>((ref) {
+  final slideUuid = ref.watch(currentSlideUuidProvider);
+  if (slideUuid == null) return const CueSlideSnapshot.empty();
+  return ref.watch(slideSnapshotProvider(slideUuid));
+});
+
+/// Watch just the current slide (convenience for widgets that only need this)
+final currentSlideProvider = Provider<Slide?>((ref) {
+  return ref.watch(currentSlideSnapshotProvider).slide;
+});
+
 /// Watch slide index info (for navigation UI)
-@riverpod
-({int index, int total})? slideIndex(Ref ref) {
+final slideIndexProvider = Provider<({int index, int total})?>((ref) {
   final session = ref.watch(activeCueSessionProvider).value;
   if (session == null || session.currentIndex == null) return null;
   return (index: session.currentIndex!, total: session.slideCount);
-}
+});
 
 /// Check if navigation is possible
-@riverpod
-bool canNavigatePrevious(Ref ref) {
+final canNavigatePreviousProvider = Provider<bool>((ref) {
   return ref.watch(activeCueSessionProvider).value?.hasPrevious ?? false;
-}
+});
 
-@riverpod
-bool canNavigateNext(Ref ref) {
+final canNavigateNextProvider = Provider<bool>((ref) {
   return ref.watch(activeCueSessionProvider).value?.hasNext ?? false;
-}
+});
