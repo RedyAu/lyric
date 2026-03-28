@@ -108,6 +108,7 @@ class _SongsPageState extends ConsumerState<SongsPage> {
                     child: Scaffold(
                       resizeToAvoidBottomInset: false,
                       appBar: AppBar(
+                        toolbarHeight: 48,
                         title: // Search bar
                         TextField(
                           controller: _searchFieldController,
@@ -116,16 +117,23 @@ class _SongsPageState extends ConsumerState<SongsPage> {
                           onEditingComplete: () =>
                               _searchFieldFocusNode.unfocus(),
                           autocorrect: false,
+                          textAlignVertical: TextAlignVertical.center,
                           decoration: InputDecoration(
                             hintText: 'Keresés',
                             prefixIcon: _searchFieldController.text.isEmpty
-                                ? Icon(Icons.search)
-                                : IconButton(
-                                    icon: Icon(Icons.clear),
-                                    onPressed: () {
-                                      _searchFieldController.clear();
-                                      _searchFieldFocusNode.unfocus();
-                                    },
+                                ? Transform.translate(
+                                    offset: const Offset(-7, 3),
+                                    child: Icon(Icons.search),
+                                  )
+                                : Transform.translate(
+                                    offset: const Offset(-7, 3),
+                                    child: IconButton(
+                                      icon: Icon(Icons.clear),
+                                      onPressed: () {
+                                        _searchFieldController.clear();
+                                        _searchFieldFocusNode.unfocus();
+                                      },
+                                    ),
                                   ),
                             suffixIcon: CompositedTransformTarget(
                               link: _link,
@@ -151,15 +159,19 @@ class _SongsPageState extends ConsumerState<SongsPage> {
                                         ),
                                       ),
                                     ),
-                                child: IconButton(
-                                  tooltip: 'Miben keressen',
-                                  icon: _overlayPortalController.isShowing
-                                      ? const Icon(Icons.close)
-                                      : const Icon(Icons.checklist_rtl),
-                                  onPressed: () {
-                                    _overlayPortalController.toggle();
-                                    setState(() {});
-                                  },
+                                child: Transform.translate(
+                                  offset: const Offset(-3, 3),
+
+                                  child: IconButton(
+                                    tooltip: 'Miben keressen',
+                                    icon: _overlayPortalController.isShowing
+                                        ? const Icon(Icons.close)
+                                        : const Icon(Icons.checklist_rtl),
+                                    onPressed: () {
+                                      _overlayPortalController.toggle();
+                                      setState(() {});
+                                    },
+                                  ),
                                 ),
                               ),
                             ),
@@ -219,8 +231,11 @@ class _SongsPageState extends ConsumerState<SongsPage> {
                                                       .onSecondaryContainer,
                                             controller:
                                                 _filterExpansionTileController,
-                                            leading: const Icon(
-                                              Icons.filter_list,
+                                            leading: Transform.translate(
+                                              offset: const Offset(-3, 0),
+                                              child: const Icon(
+                                                Icons.filter_list,
+                                              ),
                                             ),
                                             title: FiltersTitle(
                                               banks: banks,
