@@ -19,6 +19,9 @@ class LErrorCard extends StatelessWidget {
   factory LErrorCard.fromAppError({
     Key? key,
     required AppError error,
+    String? title,
+    String? message,
+    IconData? icon,
     VoidCallback? onRetry,
     String? retryLabel,
     bool? showReportButton,
@@ -30,18 +33,50 @@ class LErrorCard extends StatelessWidget {
         AppErrorCategory.backend => LErrorType.error,
         AppErrorCategory.frontend => LErrorType.error,
       },
-      title: error.title,
-      message: error.userMessage,
+      title: title ?? error.title,
+      message: message ?? error.userMessage,
       stack: error.stack,
-      icon: switch (error.category) {
-        AppErrorCategory.network => Icons.wifi_off,
-        AppErrorCategory.backend => Icons.cloud_off,
-        AppErrorCategory.frontend => Icons.bug_report,
-      },
+      icon:
+          icon ??
+          switch (error.category) {
+            AppErrorCategory.network => Icons.wifi_off,
+            AppErrorCategory.backend => Icons.cloud_off,
+            AppErrorCategory.frontend => Icons.bug_report,
+          },
       showReportButton:
           showReportButton ?? error.category == AppErrorCategory.frontend,
       onRetry: onRetry,
       retryLabel: retryLabel,
+    );
+  }
+
+  factory LErrorCard.fromError({
+    Key? key,
+    required Object error,
+    StackTrace? stackTrace,
+    String? title,
+    String? userMessage,
+    String? technicalMessage,
+    IconData? icon,
+    VoidCallback? onRetry,
+    String? retryLabel,
+    bool? showReportButton,
+  }) {
+    final appError = AppError.from(
+      error,
+      stackTrace: stackTrace,
+      userMessage: userMessage,
+      technicalMessage: technicalMessage,
+    );
+
+    return LErrorCard.fromAppError(
+      key: key,
+      error: appError,
+      title: title,
+      icon: icon,
+      onRetry: onRetry,
+      retryLabel: retryLabel,
+      showReportButton: showReportButton,
     );
   }
 

@@ -44,12 +44,11 @@ class SongPageBody extends ConsumerWidget {
     if (!viewTypeAsync.hasValue) return SizedBox.shrink();
     if (viewTypeAsync.hasError) {
       return Center(
-        child: LErrorCard(
-          type: LErrorType.error,
+        child: LErrorCard.fromError(
+          error: viewTypeAsync.error!,
+          stackTrace: viewTypeAsync.stackTrace,
           title: 'Nincs érvényes dalnézet!',
           icon: Icons.error,
-          message: viewTypeAsync.error?.toString(),
-          stack: viewTypeAsync.stackTrace?.toString(),
         ),
       );
     }

@@ -39,12 +39,11 @@ class CueLoaderPage extends ConsumerWidget {
       error: (error, stack) => Scaffold(
         appBar: AppBar(title: const Text('Hiba')),
         body: Center(
-          child: LErrorCard(
-            type: LErrorType.error,
+          child: LErrorCard.fromError(
+            error: error,
+            stackTrace: stack,
             title: 'Nem sikerült betölteni a listát',
             icon: Icons.error,
-            message: error.toString(),
-            stack: stack.toString(),
           ),
         ),
       ),

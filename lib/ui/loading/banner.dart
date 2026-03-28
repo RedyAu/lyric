@@ -85,26 +85,11 @@ class UpdatingBanner extends ConsumerWidget {
         stackTrace: schedulerState.stackTrace,
       );
 
-      if (appError.category == AppErrorCategory.frontend) {
-        return LErrorCard(
-          key: const ValueKey('scheduler-error'),
-          type: LErrorType.error,
-          title: 'Hiba a tárak frissítése közben',
-          message: schedulerError.toString(),
-          stack: schedulerState.stackTrace.toString(),
-          icon: Icons.error,
-          onRetry: () {
-            ref
-                .read(bankSongUpdateSchedulerProvider.notifier)
-                .refreshAllEnabledBanks();
-            showOnlineBanksUpdatingBanner();
-          },
-        );
-      }
-
       return LErrorCard.fromAppError(
         key: const ValueKey('scheduler-error'),
         error: appError,
+        title: 'Hiba a tárak frissítése közben',
+        icon: Icons.cloud_sync_outlined,
         onRetry: () {
           ref
               .read(bankSongUpdateSchedulerProvider.notifier)
@@ -125,6 +110,8 @@ class UpdatingBanner extends ConsumerWidget {
       return LErrorCard.fromAppError(
         key: const ValueKey('task-error'),
         error: appError,
+        title: 'Hiba a tár frissítése közben',
+        icon: Icons.cloud_sync_outlined,
         onRetry: () {
           ref.read(backgroundTaskQueueProvider.notifier).retryFailedTasks();
           showOnlineBanksUpdatingBanner();

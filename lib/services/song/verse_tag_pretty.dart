@@ -7,7 +7,7 @@ String getPrettyVerseTagFrom(String type, int? index) {
   }
 
   return [
-    switch (type) {
+    switch (type.toUpperCase()) {
       // TODO make configurable
       'V' => 'Versszak',
       'C' => 'Refrén',

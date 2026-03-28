@@ -70,6 +70,9 @@ class BankSongUpdateTask extends BackgroundTask {
   int get errorCount => _songsWithErrors;
 
   @override
+  bool get logsFailures => true;
+
+  @override
   void resetProgress() {
     super.resetProgress();
     _toUpdateCount = 0;

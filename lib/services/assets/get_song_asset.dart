@@ -7,11 +7,12 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../data/database.dart';
 import '../../data/song/song.dart';
 import '../bank/bank_of_song.dart';
+import '../error/app_error.dart';
 import '../http/dio_provider.dart';
 
 part 'get_song_asset.g.dart';
 
-typedef AssetResult = ({double progress, Uint8List? data});
+typedef AssetResult = ({double? progress, Uint8List? data});
 
 @riverpod
 Stream<AssetResult> getSongAsset(
@@ -38,6 +39,8 @@ Stream<AssetResult> getSongAsset(
     } else {
       // Download the asset with progress updates
       try {
+        controller.add((progress: null, data: null));
+
         final dio = ref.read(dioProvider);
         final response = await dio.get<List<int>>(
           sourceUrl,
@@ -47,12 +50,17 @@ Stream<AssetResult> getSongAsset(
             receiveTimeout: Duration(seconds: 10),
           ),
           onReceiveProgress: (received, total) {
-            if (total != -1) {
+            if (total > 0) {
               final progress = (received / total).clamp(0.0, 1.0);
               controller.add((progress: progress, data: null));
             }
           },
         );
+
+        final responseData = response.data;
+        if (responseData == null) {
+          throw StateError('Üres válasz érkezett a kottához: $sourceUrl');
+        }
 
         // Save the downloaded asset to the database
         await db.assets.insert().insert(
@@ -60,17 +68,23 @@ Stream<AssetResult> getSongAsset(
             songUuid: Value(song.uuid),
             fieldName: Value(fieldName),
             sourceUrl: Value(sourceUrl),
-            content: Value(Uint8List.fromList(response.data!)),
+            content: Value(Uint8List.fromList(responseData)),
           ),
         );
 
         // Add the final value
-        controller.add((
-          progress: 1.0,
-          data: Uint8List.fromList(response.data!),
-        ));
-      } catch (e) {
-        controller.addError(e);
+        controller.add((progress: 1.0, data: Uint8List.fromList(responseData)));
+      } catch (error, stackTrace) {
+        controller.addError(
+          AppError.from(
+            error,
+            stackTrace: stackTrace,
+            userMessage:
+                'A kotta letöltése nem sikerült. Ellenőrizd a kapcsolatot, majd próbáld újra.',
+            technicalMessage: 'Kotta letöltési hiba: $sourceUrl',
+          ),
+          stackTrace,
+        );
       } finally {
         await controller.close();
       }

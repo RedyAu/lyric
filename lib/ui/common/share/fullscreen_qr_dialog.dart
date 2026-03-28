@@ -28,12 +28,12 @@ class FullscreenQrDialog extends StatelessWidget {
                 errorCorrectionLevel: QrErrorCorrectLevel.M,
                 backgroundColor: Colors.white,
                 errorStateBuilder: (context, error) {
-                  return LErrorCard(
+                  return LErrorCard.fromError(
+                    error:
+                        error ?? StateError('A QR kód generálása sikertelen.'),
                     icon: Icons.qr_code,
-                    type: LErrorType.warning,
                     title:
                         'Nem tudunk QR kódot mutatni - helyette küldd el a linket közvetlenül:',
-                    message: error.toString(),
                     showReportButton: false,
                   );
                 },

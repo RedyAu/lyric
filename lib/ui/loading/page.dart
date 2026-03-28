@@ -147,11 +147,10 @@ class _LoadingPageState extends ConsumerState<LoadingPage> {
                 constraints: BoxConstraints(maxWidth: 600),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
-                  child: LErrorCard(
-                    type: LErrorType.error,
+                  child: LErrorCard.fromError(
+                    error: snapshot.error!,
+                    stackTrace: snapshot.stackTrace,
                     title: 'Hiba a beállítások betöltése közben',
-                    message: snapshot.error.toString(),
-                    stack: snapshot.stackTrace?.toString() ?? '',
                     icon: Icons.settings,
                   ),
                 ),
@@ -171,22 +170,10 @@ class _LoadingPageState extends ConsumerState<LoadingPage> {
                           stackTrace: stackTrace,
                         );
 
-                        if (appError.category == AppErrorCategory.frontend) {
-                          return LErrorCard(
-                            type: LErrorType.error,
-                            title: 'Hiba a tárak frissítése közben',
-                            message: error.toString(),
-                            stack: stackTrace.toString(),
-                            icon: Icons.error,
-                            onRetry: () {
-                              _hasRequestedInitialRefresh = false;
-                              _requestInitialRefresh();
-                            },
-                          );
-                        }
-
                         return LErrorCard.fromAppError(
                           error: appError,
+                          title: 'Hiba a tárak frissítése közben',
+                          icon: Icons.cloud_sync_outlined,
                           onRetry: () {
                             _hasRequestedInitialRefresh = false;
                             _requestInitialRefresh();

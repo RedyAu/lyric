@@ -22,6 +22,9 @@ class ErrorDialog extends StatelessWidget {
   factory ErrorDialog.fromAppError({
     Key? key,
     required AppError error,
+    String? title,
+    String? message,
+    IconData? icon,
     VoidCallback? onRetry,
     String? retryLabel,
     bool? showReportButton,
@@ -33,14 +36,16 @@ class ErrorDialog extends StatelessWidget {
         AppErrorCategory.backend => LErrorType.error,
         AppErrorCategory.frontend => LErrorType.error,
       },
-      title: error.title,
-      message: error.userMessage,
+      title: title ?? error.title,
+      message: message ?? error.userMessage,
       stack: error.stack,
-      icon: switch (error.category) {
-        AppErrorCategory.network => Icons.wifi_off,
-        AppErrorCategory.backend => Icons.cloud_off,
-        AppErrorCategory.frontend => Icons.bug_report,
-      },
+      icon:
+          icon ??
+          switch (error.category) {
+            AppErrorCategory.network => Icons.wifi_off,
+            AppErrorCategory.backend => Icons.cloud_off,
+            AppErrorCategory.frontend => Icons.bug_report,
+          },
       showReportButton:
           showReportButton ?? error.category == AppErrorCategory.frontend,
       onRetry: onRetry,
@@ -75,14 +80,15 @@ class ErrorDialog extends StatelessWidget {
             icon: Icon(Icons.refresh),
             label: Text(retryLabel ?? 'Újrapróbálás'),
           ),
-        FilledButton.tonalIcon(
-          onPressed: () => sendFeedbackEmail(
-            errorMessage: '$title ($message)',
-            stackTrace: stack,
+        if (showReportButton)
+          FilledButton.tonalIcon(
+            onPressed: () => sendFeedbackEmail(
+              errorMessage: '$title ($message)',
+              stackTrace: stack,
+            ),
+            label: Text('Hibajelentés'),
+            icon: Icon(Icons.feedback_outlined),
           ),
-          label: Text('Hibajelentés'),
-          icon: Icon(Icons.feedback_outlined),
-        ),
         FilledButton(onPressed: context.pop, child: Text('OK')),
       ],
     );

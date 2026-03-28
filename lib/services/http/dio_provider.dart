@@ -2,6 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:dio_smart_retry/dio_smart_retry.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../error/network_error.dart';
+
 part 'dio_provider.g.dart';
 
 final Dio appDio = _buildAppDio();
@@ -20,22 +22,7 @@ Dio _buildAppDio() {
       dio: dio,
       retries: 2,
       retryDelays: const [Duration(milliseconds: 200), Duration(seconds: 3)],
-      retryEvaluator: (error, attempt) {
-        if (error.type == DioExceptionType.connectionTimeout ||
-            error.type == DioExceptionType.sendTimeout ||
-            error.type == DioExceptionType.receiveTimeout ||
-            error.type == DioExceptionType.connectionError ||
-            error.type == DioExceptionType.badCertificate) {
-          return true;
-        }
-
-        if (error.type == DioExceptionType.badResponse) {
-          final statusCode = error.response?.statusCode;
-          return statusCode != null && statusCode >= 500;
-        }
-
-        return false;
-      },
+      retryEvaluator: (error, attempt) => isRetryableDioException(error),
     ),
   );
 

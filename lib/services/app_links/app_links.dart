@@ -36,8 +36,11 @@ Stream<String> shouldNavigate(Ref ref) async* {
                 );
 
                 yield result.getNavigationPath();
-              } catch (e) {
-                throw Exception('Hibás lista a linkben:\n$e');
+              } catch (e, s) {
+                Error.throwWithStackTrace(
+                  Exception('Hibás lista a linkben:\n$e'),
+                  s,
+                );
               }
             case 'cueJson':
               try {
@@ -50,8 +53,11 @@ Stream<String> shouldNavigate(Ref ref) async* {
                 );
 
                 yield result.getNavigationPath();
-              } catch (e) {
-                throw Exception('Hibás lista a linkben:\n$e');
+              } catch (e, s) {
+                Error.throwWithStackTrace(
+                  Exception('Hibás lista a linkben:\n$e'),
+                  s,
+                );
               }
             case '':
             case '/':

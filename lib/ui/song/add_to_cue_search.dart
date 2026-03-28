@@ -129,11 +129,10 @@ class _AddToCueSearchState extends ConsumerState<AddToCueSearch> {
 
           if (cuesAsync.hasError) {
             return [
-              LErrorCard(
-                type: LErrorType.error,
+              LErrorCard.fromError(
+                error: cuesAsync.error!,
+                stackTrace: cuesAsync.stackTrace,
                 title: 'Nem sikerült betölteni a listákat :(',
-                message: cuesAsync.error.toString(),
-                stack: cuesAsync.stackTrace.toString(),
                 icon: Icons.list,
               ),
             ];
@@ -205,13 +204,12 @@ class _AddToCueSearchState extends ConsumerState<AddToCueSearch> {
                 }),
               )
               .toList();
-        } catch (e, s) {
+        } catch (error, stackTrace) {
           return [
-            LErrorCard(
-              type: LErrorType.error,
+            LErrorCard.fromError(
+              error: error,
+              stackTrace: stackTrace,
               title: 'Nem sikerült betölteni a listákat :(',
-              message: e.toString(),
-              stack: s.toString(),
               icon: Icons.list,
             ),
           ];

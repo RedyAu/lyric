@@ -39,12 +39,11 @@ class _SetsPageState extends ConsumerState<SetsPage> {
       ),
       body: switch (cues) {
         AsyncError(:final error, :final stackTrace) => Center(
-          child: LErrorCard(
-            type: LErrorType.error,
+          child: LErrorCard.fromError(
+            error: error,
+            stackTrace: stackTrace,
             title: 'Hová lettek a listák?',
             icon: Icons.error,
-            message: error.toString(),
-            stack: stackTrace.toString(),
           ),
         ),
         AsyncLoading() => Center(child: CircularProgressIndicator()),

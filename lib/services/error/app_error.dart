@@ -1,4 +1,9 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:dio/dio.dart';
+
+import 'network_error.dart';
 
 enum AppErrorCategory { network, backend, frontend }
 
@@ -43,6 +48,28 @@ class AppError implements Exception {
 
     if (error is DioException) {
       switch (error.type) {
+        case DioExceptionType.badCertificate:
+          return AppError(
+            category: AppErrorCategory.network,
+            title: 'Biztonsági hálózati hiba',
+            userMessage:
+                userMessage ??
+                'A szerver biztonsági tanúsítványa érvénytelen. Később próbáld újra.',
+            technicalMessage:
+                technicalMessage ?? error.message ?? error.error?.toString(),
+            stackTrace: stackTrace,
+            originalError: error,
+          );
+        case DioExceptionType.cancel:
+          return AppError(
+            category: AppErrorCategory.network,
+            title: 'Művelet megszakítva',
+            userMessage: userMessage ?? 'A kérés megszakadt. Próbáld újra.',
+            technicalMessage:
+                technicalMessage ?? error.message ?? error.error?.toString(),
+            stackTrace: stackTrace,
+            originalError: error,
+          );
         case DioExceptionType.connectionTimeout:
         case DioExceptionType.sendTimeout:
         case DioExceptionType.receiveTimeout:
@@ -53,7 +80,8 @@ class AppError implements Exception {
             userMessage:
                 userMessage ??
                 'Nincs stabil kapcsolat a szerverrel. Ellenőrizd az internetkapcsolatot, majd próbáld újra.',
-            technicalMessage: technicalMessage ?? error.message,
+            technicalMessage:
+                technicalMessage ?? error.message ?? error.error?.toString(),
             stackTrace: stackTrace,
             originalError: error,
           );
@@ -65,33 +93,44 @@ class AppError implements Exception {
             userMessage:
                 userMessage ??
                 'A szerver hibát jelzett${statusCode != null ? ' (HTTP $statusCode)' : ''}. Próbáld újra később.',
-            technicalMessage: technicalMessage ?? error.message,
-            stackTrace: stackTrace,
-            originalError: error,
-          );
-        case DioExceptionType.badCertificate:
-          return AppError(
-            category: AppErrorCategory.network,
-            title: 'Biztonsági hálózati hiba',
-            userMessage:
-                userMessage ??
-                'A szerver biztonsági tanúsítványa érvénytelen. Később próbáld újra.',
-            technicalMessage: technicalMessage ?? error.message,
-            stackTrace: stackTrace,
-            originalError: error,
-          );
-        case DioExceptionType.cancel:
-          return AppError(
-            category: AppErrorCategory.network,
-            title: 'Művelet megszakítva',
-            userMessage: userMessage ?? 'A kérés megszakadt. Próbáld újra.',
-            technicalMessage: technicalMessage ?? error.message,
+            technicalMessage:
+                technicalMessage ?? error.message ?? error.error?.toString(),
             stackTrace: stackTrace,
             originalError: error,
           );
         case DioExceptionType.unknown:
           break;
       }
+
+      if (isNetworkRelatedError(error)) {
+        return AppError(
+          category: AppErrorCategory.network,
+          title: 'Hálózati hiba',
+          userMessage:
+              userMessage ??
+              'Nincs stabil kapcsolat a szerverrel. Ellenőrizd az internetkapcsolatot, majd próbáld újra.',
+          technicalMessage:
+              technicalMessage ?? error.message ?? error.error?.toString(),
+          stackTrace: stackTrace,
+          originalError: error,
+        );
+      }
+    }
+
+    if (error is SocketException ||
+        error is TimeoutException ||
+        error is HandshakeException ||
+        error is TlsException) {
+      return AppError(
+        category: AppErrorCategory.network,
+        title: 'Hálózati hiba',
+        userMessage:
+            userMessage ??
+            'Nincs stabil kapcsolat a szerverrel. Ellenőrizd az internetkapcsolatot, majd próbáld újra.',
+        technicalMessage: technicalMessage ?? error.toString(),
+        stackTrace: stackTrace,
+        originalError: error,
+      );
     }
 
     if (error is FormatException ||

@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logging/logging.dart';
+import 'package:sofar/data/log/logger.dart';
 import 'package:sofar/services/task/background_task.dart';
 import 'package:sofar/services/task/task_queue.dart';
 
@@ -10,11 +12,13 @@ class _FakeTask extends BackgroundTask {
     required this.taskTitle,
     this.onExecute,
     this.failuresBeforeSuccess = 0,
+    this.logsOwnFailures = false,
   });
 
   final String taskTitle;
   final Future<void> Function()? onExecute;
   final int failuresBeforeSuccess;
+  final bool logsOwnFailures;
 
   int _attempts = 0;
 
@@ -37,6 +41,9 @@ class _FakeTask extends BackgroundTask {
 
   @override
   int get errorCount => isFailed ? 1 : 0;
+
+  @override
+  bool get logsFailures => logsOwnFailures;
 
   @override
   Future<void> execute() async {
@@ -116,6 +123,64 @@ void main() {
       expect(task.isCompleted, isTrue);
       expect(task.attempts, 2);
       expect(container.read(backgroundTaskQueueProvider).tasks, hasLength(1));
+    });
+
+    test('logs failed tasks that do not self-log', () async {
+      final previousLevel = Logger.root.level;
+      Logger.root.level = Level.ALL;
+      addTearDown(() => Logger.root.level = previousLevel);
+
+      final records = <LogRecord>[];
+      final subscription = log.onRecord.listen(records.add);
+      addTearDown(subscription.cancel);
+
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final task = _FakeTask(taskTitle: 'noisy', failuresBeforeSuccess: 1);
+
+      container.read(backgroundTaskQueueProvider.notifier).enqueue(task);
+
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        records.where(
+          (record) => record.message == 'Background task failed: noisy',
+        ),
+        hasLength(1),
+      );
+    });
+
+    test('does not log failed tasks that report their own failures', () async {
+      final previousLevel = Logger.root.level;
+      Logger.root.level = Level.ALL;
+      addTearDown(() => Logger.root.level = previousLevel);
+
+      final records = <LogRecord>[];
+      final subscription = log.onRecord.listen(records.add);
+      addTearDown(subscription.cancel);
+
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final task = _FakeTask(
+        taskTitle: 'self-logged',
+        failuresBeforeSuccess: 1,
+        logsOwnFailures: true,
+      );
+
+      container.read(backgroundTaskQueueProvider.notifier).enqueue(task);
+
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        records.where(
+          (record) => record.message == 'Background task failed: self-logged',
+        ),
+        isEmpty,
+      );
     });
   });
 }

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/database.dart';
+import '../../data/log/logger.dart';
 import '../bank/update.dart';
 import '../http/dio_provider.dart';
 import '../task/task_queue.dart';
@@ -103,6 +104,7 @@ class BankSongUpdateScheduler extends Notifier<AsyncValue<void>> {
 
       state = const AsyncValue.data(null);
     } catch (error, stackTrace) {
+      log.severe('Hiba a tárak frissítésének indításakor', error, stackTrace);
       state = AsyncValue.error(error, stackTrace);
     } finally {
       _isScheduling = false;

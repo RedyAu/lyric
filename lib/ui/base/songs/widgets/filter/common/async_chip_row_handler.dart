@@ -58,12 +58,12 @@ class _AsyncChipRowHandlerOfState<T> extends State<AsyncChipRowHandlerOf<T>> {
   @override
   Widget build(BuildContext context) {
     return switch (widget.asyncValue) {
-      AsyncError(:final error, :final stackTrace) => LErrorCard(
+      AsyncError(:final error, :final stackTrace) => LErrorCard.fromError(
+        error: error,
+        stackTrace: stackTrace,
         title: 'Hiba a szűrőértékek lekérdezése közben',
         icon: Icons.warning,
-        type: LErrorType.warning,
-        message: error.toString(),
-        stack: stackTrace.toString(),
+        showReportButton: false,
       ),
       AsyncValue(:final value) =>
         value == null

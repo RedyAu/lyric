@@ -11,9 +11,10 @@ Future updateBanks(Dio dio) async {
   late List protoBanks;
   try {
     protoBanks = (await dio.get<List>('${appConfig.apiRoot}/banks')).data!;
-  } catch (e) {
+  } catch (e, s) {
     throw AppError.from(
       e,
+      stackTrace: s,
       userMessage:
           'Nem sikerült lekérni az elérhető daltárakat. Próbáld újra később.',
     );
@@ -24,9 +25,10 @@ Future updateBanks(Dio dio) async {
 
     try {
       details = (await dio.get<Map>('${protoBank['api']}/about')).data!;
-    } catch (e) {
+    } catch (e, s) {
       throw AppError.from(
         e,
+        stackTrace: s,
         userMessage:
             'Nem sikerült lekérni az adatokat: ${protoBank['name']}. Próbáld újra később.',
       );

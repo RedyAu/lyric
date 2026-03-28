@@ -30,22 +30,22 @@ class SheetView extends ConsumerWidget {
       ThemeMode.system => MediaQuery.platformBrightnessOf(context),
     };
 
-    final asset = ref.watch(
-      getSongAssetProvider(song, switch (_viewType) {
-        SongViewType.svg => 'svg',
-        SongViewType.pdf || _ => 'pdf',
-      }),
-    );
+    final assetField = switch (_viewType) {
+      SongViewType.svg => 'svg',
+      SongViewType.pdf || _ => 'pdf',
+    };
+    final assetProvider = getSongAssetProvider(song, assetField);
+    final asset = ref.watch(assetProvider);
 
     switch (asset) {
       case AsyncError(:final error, :final stackTrace):
         return Center(
-          child: LErrorCard(
-            type: LErrorType.error,
+          child: LErrorCard.fromError(
+            error: error,
+            stackTrace: stackTrace,
             title: 'Nem sikerült betölteni a kottaképet.',
-            message: error.toString(),
-            stack: stackTrace.toString(),
-            icon: Icons.error,
+            icon: Icons.music_note,
+            onRetry: () => ref.invalidate(assetProvider),
           ),
         );
       case AsyncData(value: final assetResult):
@@ -107,12 +107,39 @@ class SheetView extends ConsumerWidget {
               );
           }
         } else {
-          return Center(
-            child: CircularProgressIndicator(value: assetResult.progress),
-          );
+          return _AssetLoadingIndicator(progress: assetResult.progress);
         }
       default:
-        return Center(child: CircularProgressIndicator(value: 0.8));
+        return const _AssetLoadingIndicator();
     }
+  }
+}
+
+class _AssetLoadingIndicator extends StatelessWidget {
+  const _AssetLoadingIndicator({this.progress});
+
+  final double? progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final percent = progress == null ? null : (progress! * 100).round();
+
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox.square(
+            dimension: 48,
+            child: CircularProgressIndicator(value: progress),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            percent == null
+                ? 'Kottakép betöltése...'
+                : 'Kottakép betöltése... $percent%',
+          ),
+        ],
+      ),
+    );
   }
 }

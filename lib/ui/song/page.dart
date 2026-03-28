@@ -44,8 +44,8 @@ class _SongPageState extends ConsumerState<SongPage> {
     return switch (song) {
       AsyncLoading() => const Center(child: CircularProgressIndicator()),
       AsyncError(:final error, :final stackTrace) => _buildErrorCard(
-        error: error.toString(),
-        stackTrace: stackTrace.toString(),
+        error: error,
+        stackTrace: stackTrace,
       ),
       AsyncValue(value: null) => _buildNotFoundCard(),
       AsyncValue(value: final Song song) => SongPageContent(
@@ -58,13 +58,15 @@ class _SongPageState extends ConsumerState<SongPage> {
     };
   }
 
-  Widget _buildErrorCard({required String error, required String stackTrace}) {
+  Widget _buildErrorCard({
+    required Object error,
+    required StackTrace stackTrace,
+  }) {
     return Center(
-      child: LErrorCard(
-        type: LErrorType.error,
+      child: LErrorCard.fromError(
+        error: error,
+        stackTrace: stackTrace,
         title: 'Nem sikerült betölteni a dalt :(',
-        message: error,
-        stack: stackTrace,
         icon: Icons.music_note,
       ),
     );

@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:intl/intl.dart';
 
 import '../../data/bank/bank.dart';
+import '../../data/log/logger.dart';
 import '../../data/song/song.dart';
 import '../error/app_error.dart';
 
@@ -50,9 +51,10 @@ class BankApi {
         );
         return [song];
       }
-    } catch (e) {
+    } catch (e, s) {
       throw AppError.from(
         e,
+        stackTrace: s,
         userMessage: 'Hiba történt néhány dal feldolgozása közben.',
         technicalMessage: 'Error while updating songs with uuids $uuids\n$e',
       );
@@ -68,7 +70,12 @@ class BankApi {
         return DateTime.parse(jsonData['lastUpdated'] as String);
       }
       return null;
-    } catch (e) {
+    } catch (e, s) {
+      log.warning(
+        'Nem sikerült lekérni a tár távoli frissítési idejét: ${bank.name}',
+        e,
+        s,
+      );
       return null;
     }
   }

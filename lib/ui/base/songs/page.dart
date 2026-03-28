@@ -90,12 +90,11 @@ class _SongsPageState extends ConsumerState<SongsPage> {
     return switch (banks) {
       AsyncLoading() => Center(child: CircularProgressIndicator()),
       AsyncError(:final error, :final stackTrace) => Center(
-        child: LErrorCard(
-          type: LErrorType.error,
+        child: LErrorCard.fromError(
+          error: error,
+          stackTrace: stackTrace,
           title: 'Nem sikerült betölteni a daltárakat!',
           icon: Icons.library_music,
-          message: error.toString(),
-          stack: stackTrace.toString(),
         ),
       ),
       AsyncValue<List<Bank>>(value: final banks!) => Stack(
@@ -258,12 +257,11 @@ class _SongsPageState extends ConsumerState<SongsPage> {
                             child: switch (songResults) {
                               AsyncError(:final error, :final stackTrace) =>
                                 Center(
-                                  child: LErrorCard(
-                                    type: LErrorType.error,
+                                  child: LErrorCard.fromError(
+                                    error: error,
+                                    stackTrace: stackTrace,
                                     title: 'Hová lettek a dalok? :(',
-                                    message: error.toString(),
                                     icon: Icons.error,
-                                    stack: stackTrace.toString(),
                                   ),
                                 ),
                               AsyncValue(:final value) =>

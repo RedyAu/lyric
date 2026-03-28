@@ -17,11 +17,10 @@ class FiltersColumn extends ConsumerWidget {
 
     switch (filterableFieldsList) {
       case AsyncError(:final error, :final stackTrace):
-        return LErrorCard(
-          type: LErrorType.error,
+        return LErrorCard.fromError(
+          error: error,
+          stackTrace: stackTrace,
           title: 'Hiba a szűrők betöltése közben',
-          message: error.toString(),
-          stack: stackTrace.toString(),
           icon: Icons.error,
         );
       case AsyncValue(:final value):

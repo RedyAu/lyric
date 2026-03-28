@@ -21,6 +21,7 @@ abstract class BackgroundTask {
   int get totalCount;
   int get doneCount;
   int get errorCount;
+  bool get logsFailures => false;
 
   BackgroundTaskStatus get status => _status;
   Object? get lastError => _lastError;

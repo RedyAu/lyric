@@ -193,11 +193,13 @@ class BackgroundTaskQueue extends Notifier<BackgroundTaskQueueState> {
         try {
           await nextTask.run();
         } catch (error, stackTrace) {
-          log.warning(
-            'Background task failed: ${nextTask.title}',
-            error,
-            stackTrace,
-          );
+          if (!nextTask.logsFailures) {
+            log.severe(
+              'Background task failed: ${nextTask.title}',
+              error,
+              stackTrace,
+            );
+          }
         } finally {
           _publishState();
         }

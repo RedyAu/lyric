@@ -20,12 +20,11 @@ class BankChooser extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     var banks = ref.watch(watchAllBanksProvider);
     return switch (banks) {
-      AsyncError(:final error, :final stackTrace) => LErrorCard(
-        type: LErrorType.error,
+      AsyncError(:final error, :final stackTrace) => LErrorCard.fromError(
+        error: error,
+        stackTrace: stackTrace,
         title: 'Nem sikerült betölteni a daltárakat',
         icon: Icons.error,
-        message: error.toString(),
-        stack: stackTrace.toString(),
       ),
       AsyncLoading() => Center(child: CircularProgressIndicator()),
       AsyncValue<List<Bank>>(:final value!) => Column(

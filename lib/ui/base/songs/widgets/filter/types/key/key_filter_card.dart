@@ -135,12 +135,12 @@ class _KeyFilterCardState extends ConsumerState<KeyFilterCard> {
     bool modes = false,
   }) {
     return switch (selectables) {
-      AsyncError(:final Error error) => LErrorCard(
-        type: LErrorType.warning,
+      AsyncError(:final error, :final stackTrace) => LErrorCard.fromError(
+        error: error,
+        stackTrace: stackTrace,
         title: 'Hiba a hangsoradatok lekérdezésekor',
-        message: error.toString(),
-        stack: error.stackTrace.toString(),
         icon: Icons.error,
+        showReportButton: false,
       ),
       AsyncValue(:final value) => SizedBox(
         height: 42,
