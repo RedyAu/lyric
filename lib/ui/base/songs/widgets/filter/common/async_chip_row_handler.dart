@@ -63,7 +63,7 @@ class _AsyncChipRowHandlerOfState<T> extends State<AsyncChipRowHandlerOf<T>> {
         stackTrace: stackTrace,
         title: 'Hiba a szűrőértékek lekérdezése közben',
         icon: Icons.warning,
-        showReportButton: false,
+        showReportButton: true,
       ),
       AsyncValue(:final value) =>
         value == null

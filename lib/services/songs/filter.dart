@@ -22,13 +22,22 @@ const List<String> fullTextSearchFields = ['title', 'lyrics'];
 Future<Map<String, ({FieldType type, int count})>> existingFilterableFields(
   Ref ref,
 ) async {
-  Map<String, ({FieldType type, int count})> fields = {};
-
-  final allSongs = Stream.fromIterable(
+  return buildExistingFilterableFields(
     await ref.watch(allSongsProvider.future),
   );
+}
 
-  await for (var song in allSongs) {
+Map<String, ({FieldType type, int count})> buildExistingFilterableFields(
+  Iterable<Song> songs,
+) {
+  Map<String, ({FieldType type, int count})> fields = {};
+  int keyFieldCount = 0;
+
+  for (var song in songs) {
+    if (song.keyField != null) {
+      keyFieldCount++;
+    }
+
     for (var field in song.contentMap.keys) {
       if ((FieldType.fromString(
                 songFieldsMap[field]?['type'] ?? "",
@@ -50,6 +59,11 @@ Future<Map<String, ({FieldType type, int count})>> existingFilterableFields(
         }
       }
     }
+  }
+
+  // Build static filters
+  if (keyFieldCount > 0) {
+    fields['key'] = (type: FieldType.key, count: keyFieldCount);
   }
 
   return fields;
