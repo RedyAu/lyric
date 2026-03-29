@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_fullscreen/flutter_fullscreen.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:go_router/go_router.dart';
 import 'services/app_links/app_links.dart';
 import 'services/app_links/navigation.dart';
@@ -29,6 +30,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   GoRouter.optionURLReflectsImperativeAPIs = true;
   if (kIsWeb) {
+    usePathUrlStrategy();
     restoreStoredWebRouteIfAny();
   } else {
     await FullScreen.ensureInitialized();
