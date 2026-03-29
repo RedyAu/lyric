@@ -91,7 +91,7 @@ jobs:
         run: |
           mkdir -p "${RUNNER_TEMP}/pages-repo/${TARGET_DIR}"
           rsync -a --delete \
-            "${RUNNER_TEMP}/web-build/build/web/" \
+            "${RUNNER_TEMP}/web-build/" \
             "${RUNNER_TEMP}/pages-repo/${TARGET_DIR}/"
 
       - name: Commit deployment if needed
