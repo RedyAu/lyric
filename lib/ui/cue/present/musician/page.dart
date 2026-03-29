@@ -12,9 +12,14 @@ import '../../session/session_provider.dart';
 import '../../widgets/slide_view.dart';
 
 class CuePresentMusicianPage extends ConsumerStatefulWidget {
-  const CuePresentMusicianPage(this.session, {super.key});
+  const CuePresentMusicianPage(
+    this.session, {
+    this.fullscreenController,
+    super.key,
+  });
 
   final CueSession session;
+  final PresentationFullscreenController? fullscreenController;
 
   @override
   ConsumerState<CuePresentMusicianPage> createState() =>
@@ -26,6 +31,14 @@ class _CuePresentMusicianPageState extends ConsumerState<CuePresentMusicianPage>
   late final AnimationController overlayController;
   late final Animation<double> overlayAnimation;
   late final ProviderSubscription<String?> _slideListener;
+  StreamSubscription<bool>? _fullscreenChanges;
+  bool _awaitingExternalFullscreenExit = false;
+  Timer? _overlayIntroShowTimer;
+  Timer? _overlayIntroHideTimer;
+  Timer? _overlayCloser;
+
+  PresentationFullscreenController get _fullscreenController =>
+      widget.fullscreenController ?? presentationFullscreenController;
 
   @override
   void initState() {
@@ -40,16 +53,25 @@ class _CuePresentMusicianPageState extends ConsumerState<CuePresentMusicianPage>
       reverseCurve: Curves.easeInOutCubicEmphasized.flipped,
     );
 
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // Wait for page transition
-      await Future.delayed(Duration(milliseconds: 500));
-      overlayController.forward();
-      await Future.delayed(Duration(milliseconds: 1000));
-      overlayController.reverse();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Wait for page transition before briefly showing the controls.
+      _overlayIntroShowTimer = Timer(const Duration(milliseconds: 500), () {
+        if (!mounted) return;
+
+        overlayController.forward();
+        _overlayIntroHideTimer = Timer(const Duration(milliseconds: 1000), () {
+          if (!mounted) return;
+          overlayController.reverse();
+        });
+      });
     });
 
     super.initState();
-    unawaited(presentationFullscreenController.enter());
+    _fullscreenChanges = _fullscreenController.changes.listen(
+      _handleFullscreenChange,
+    );
+    _awaitingExternalFullscreenExit = _fullscreenController.isFullscreen;
+    unawaited(_enterPresentationMode());
 
     _slideListener = ref.listenManual(
       currentSlideUuidProvider,
@@ -63,8 +85,13 @@ class _CuePresentMusicianPageState extends ConsumerState<CuePresentMusicianPage>
 
   @override
   void dispose() {
+    _overlayIntroShowTimer?.cancel();
+    _overlayIntroHideTimer?.cancel();
+    _overlayCloser?.cancel();
+    overlayController.dispose();
+    _fullscreenChanges?.cancel();
     _slideListener.close();
-    unawaited(presentationFullscreenController.exit());
+    unawaited(_fullscreenController.exit());
     super.dispose();
   }
 
@@ -92,10 +119,36 @@ class _CuePresentMusicianPageState extends ConsumerState<CuePresentMusicianPage>
     GoRouter.of(context).replace(targetRoute);
   }
 
-  Timer? overlayCloser;
+  Future<void> _enterPresentationMode() async {
+    await _fullscreenController.enter();
+    if (!mounted) return;
+
+    _awaitingExternalFullscreenExit = _fullscreenController.isFullscreen;
+  }
+
+  void _handleFullscreenChange(bool isFullscreen) {
+    if (!_awaitingExternalFullscreenExit) {
+      if (isFullscreen) {
+        _awaitingExternalFullscreenExit = true;
+      }
+      return;
+    }
+
+    if (isFullscreen || !mounted) return;
+
+    final slideUuid = ref.read(currentSlideUuidProvider);
+    context.go(
+      cueRoutePath(
+        widget.session.cue.uuid,
+        CuePageType.edit,
+        slideUuid: slideUuid,
+      ),
+    );
+  }
+
   void resetOverlayCloser() {
-    overlayCloser?.cancel();
-    overlayCloser = Timer(
+    _overlayCloser?.cancel();
+    _overlayCloser = Timer(
       Duration(seconds: 3),
       () => overlayController.reverse(),
     );

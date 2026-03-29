@@ -5,6 +5,10 @@ abstract class NativeFullscreenDriver {
 }
 
 abstract class PresentationFullscreenController {
+  bool get isFullscreen;
+
+  Stream<bool> get changes;
+
   Future<void> prepareForNavigation();
 
   Future<void> enter();

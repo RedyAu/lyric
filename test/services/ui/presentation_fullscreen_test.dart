@@ -37,5 +37,25 @@ void main() {
 
       expect(driver.calls, [(enabled: false, systemUiMode: null)]);
     });
+
+    test('tracks fullscreen state changes for native flow', () async {
+      final driver = _RecordingNativeFullscreenDriver();
+      final controller = PlatformPresentationFullscreenController(
+        driver: driver,
+      );
+      final states = <bool>[];
+      final subscription = controller.changes.listen(states.add);
+
+      expect(controller.isFullscreen, isFalse);
+
+      await controller.enter();
+      await controller.exit();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(controller.isFullscreen, isFalse);
+      expect(states, [true, false]);
+
+      await subscription.cancel();
+    });
   });
 }
