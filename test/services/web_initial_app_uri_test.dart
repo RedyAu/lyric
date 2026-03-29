@@ -29,32 +29,47 @@ AppConfig _testConfig({required bool enableRecovery}) {
 }
 
 void main() {
-  group('deriveInitialWebAppUri', () {
+  group('deriveInitialWebAppUriCapture', () {
     test('keeps the current browser URI when recovery is disabled', () {
       final browserUri = Uri.parse('https://test.example.com/web/');
 
-      final initialUri = deriveInitialWebAppUri(
+      final capture = deriveInitialWebAppUriCapture(
         browserUri,
         config: _testConfig(enableRecovery: false),
         recoveredPath: '/web/song/song-123',
       );
 
-      expect(initialUri, browserUri);
+      expect(capture.appUri, browserUri);
+      expect(capture.usedRecoveredPath, isFalse);
     });
 
     test('uses the recovered deep link when recovery is enabled', () {
       final browserUri = Uri.parse('https://test.example.com/web/');
 
-      final initialUri = deriveInitialWebAppUri(
+      final capture = deriveInitialWebAppUriCapture(
         browserUri,
         config: _testConfig(enableRecovery: true),
         recoveredPath: '/web/song/song-123?view=lyrics#verse-2',
       );
 
       expect(
-        initialUri.toString(),
+        capture.appUri.toString(),
         'https://test.example.com/web/song/song-123?view=lyrics#verse-2',
       );
+      expect(capture.usedRecoveredPath, isTrue);
+    });
+
+    test('ignores empty recovered paths even when recovery is enabled', () {
+      final browserUri = Uri.parse('https://test.example.com/web/');
+
+      final capture = deriveInitialWebAppUriCapture(
+        browserUri,
+        config: _testConfig(enableRecovery: true),
+        recoveredPath: '',
+      );
+
+      expect(capture.appUri, browserUri);
+      expect(capture.usedRecoveredPath, isFalse);
     });
   });
 

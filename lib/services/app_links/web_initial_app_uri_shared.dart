@@ -1,6 +1,16 @@
 import '../../config/app_config.dart';
 
-Uri deriveInitialWebAppUri(
+class InitialWebAppUriCapture {
+  const InitialWebAppUriCapture({
+    required this.appUri,
+    required this.usedRecoveredPath,
+  });
+
+  final Uri appUri;
+  final bool usedRecoveredPath;
+}
+
+InitialWebAppUriCapture deriveInitialWebAppUriCapture(
   Uri browserUri, {
   required AppConfig config,
   String? recoveredPath,
@@ -8,14 +18,20 @@ Uri deriveInitialWebAppUri(
   if (!config.enableStaticWebDeepLinkRecovery ||
       recoveredPath == null ||
       recoveredPath.isEmpty) {
-    return browserUri;
+    return InitialWebAppUriCapture(
+      appUri: browserUri,
+      usedRecoveredPath: false,
+    );
   }
 
   final normalizedRecoveredPath = recoveredPath.startsWith('/')
       ? recoveredPath
       : '/$recoveredPath';
 
-  return browserUri.resolveUri(Uri.parse(normalizedRecoveredPath));
+  return InitialWebAppUriCapture(
+    appUri: browserUri.resolveUri(Uri.parse(normalizedRecoveredPath)),
+    usedRecoveredPath: true,
+  );
 }
 
 Uri webAppUriFromRoute(String route, {required AppConfig config}) {

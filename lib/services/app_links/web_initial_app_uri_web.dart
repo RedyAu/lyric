@@ -8,17 +8,21 @@ Uri? captureInitialWebAppUri({required AppConfig config}) {
   final recoveredPath = config.enableStaticWebDeepLinkRecovery
       ? web.window.sessionStorage.getItem('originalWebPath')
       : null;
-  final initialUri = deriveInitialWebAppUri(
+  final capture = deriveInitialWebAppUriCapture(
     browserUri,
     config: config,
     recoveredPath: recoveredPath,
   );
 
+  if (capture.usedRecoveredPath) {
+    web.window.history.replaceState(null, '', _relativeUri(capture.appUri));
+  }
+
   if (recoveredPath != null && recoveredPath.isNotEmpty) {
     web.window.sessionStorage.removeItem('originalWebPath');
   }
 
-  return initialUri;
+  return capture.appUri;
 }
 
 void syncWebBrowserUrlToAppRoute(String route, {required AppConfig config}) {

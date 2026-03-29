@@ -72,39 +72,8 @@ class _LyricAppState extends ConsumerState<LyricApp> {
     final startupRoute = widget.initialAppUri == null
         ? null
         : initialRouteFromAppUri(widget.initialAppUri);
-    final router = createAppRouter(initialLocation: startupRoute);
-
     setState(() {
-      _router = router;
-    });
-
-    if (kIsWeb && startupRoute != null && startupRoute != '/home') {
-      _scheduleWebStartupRouteReconciliation(
-        router: router,
-        startupRoute: startupRoute,
-      );
-    }
-  }
-
-  void _scheduleWebStartupRouteReconciliation({
-    required GoRouter router,
-    required String startupRoute,
-  }) {
-    void reconcile() {
-      if (!mounted || _router != router) return;
-
-      final currentRoute = router.routeInformationProvider.value.uri.toString();
-      if (currentRoute != startupRoute) {
-        router.go(startupRoute);
-        return;
-      }
-
-      syncWebBrowserUrlToAppRoute(startupRoute, config: appConfig);
-    }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      reconcile();
-      Future<void>.delayed(const Duration(milliseconds: 300), reconcile);
+      _router = createAppRouter(initialLocation: startupRoute);
     });
   }
 
