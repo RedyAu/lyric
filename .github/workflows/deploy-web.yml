@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
       - name: Prepare Drift web assets
         run: dart run tool/prepare_web.dart
 
@@ -52,12 +55,12 @@ jobs:
       TARGET_BRANCH: main
       TARGET_DIR: docs/web
     steps:
-      - name: Verify deploy token
+      - name: Verify deploy key
         env:
-          DEPLOY_TOKEN: ${{ secrets.APP_SOFARKOTTA_HU_DEPLOY_TOKEN }}
+          DEPLOY_KEY: ${{ secrets.APP_SOFARKOTTA_HU_DEPLOY_KEY }}
         run: |
-          if [ -z "$DEPLOY_TOKEN" ]; then
-            echo "Missing APP_SOFARKOTTA_HU_DEPLOY_TOKEN secret."
+          if [ -z "$DEPLOY_KEY" ]; then
+            echo "Missing APP_SOFARKOTTA_HU_DEPLOY_KEY secret."
             exit 1
           fi
 
@@ -67,13 +70,21 @@ jobs:
           name: web-build
           path: ${{ runner.temp }}/web-build
 
+      - name: Load deploy key
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.APP_SOFARKOTTA_HU_DEPLOY_KEY }}
+
+      - name: Trust GitHub SSH host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
       - name: Clone target Pages repository
-        env:
-          DEPLOY_TOKEN: ${{ secrets.APP_SOFARKOTTA_HU_DEPLOY_TOKEN }}
         run: |
           git clone \
             --branch "$TARGET_BRANCH" \
-            "https://x-access-token:${DEPLOY_TOKEN}@github.com/${TARGET_REPO}.git" \
+            "git@github.com:${TARGET_REPO}.git" \
             "${RUNNER_TEMP}/pages-repo"
 
       - name: Sync web bundle into Pages repository

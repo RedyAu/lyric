@@ -22,9 +22,9 @@ The `Deploy Web` workflow in this repository builds the Flutter web app and sync
 
 Required repository secret in `reformatus/lyric`:
 
-1. `APP_SOFARKOTTA_HU_DEPLOY_TOKEN`
+1. `APP_SOFARKOTTA_HU_DEPLOY_KEY`
 
-The token must have permission to push to `reformatus/app.sofarkotta.hu`.
+The secret must contain the private SSH deploy key that has write access to `reformatus/app.sofarkotta.hu`.
 
 #### Contributing
 
