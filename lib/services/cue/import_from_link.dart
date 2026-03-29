@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/cue/cue.dart';
 import '../../main.dart';
+import '../../services/app_links/navigation.dart';
 import '../../ui/common/confirm_dialog.dart';
+import '../../ui/cue/cue_page_type.dart';
 import '../cue/from_uuid.dart';
 import '../song/from_uuid.dart';
 import '../cue/write_cue.dart';
@@ -20,12 +22,7 @@ class CueImportResult {
 
   /// Returns the navigation path for this imported cue
   String getNavigationPath() {
-    return Uri(
-      pathSegments: ['cue', cue.uuid, 'edit'],
-      queryParameters: Map.fromEntries([
-        if (slideUuid != null) MapEntry('slide', slideUuid!),
-      ]),
-    ).toString();
+    return cueRoutePath(cue.uuid, CuePageType.edit, slideUuid: slideUuid);
   }
 }
 
