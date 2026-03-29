@@ -114,6 +114,7 @@ class _LyricAppState extends ConsumerState<LyricApp> {
 
     if (_router == null) {
       return MaterialApp(
+        title: appConfig.appName,
         themeMode: commonArgs.themeMode,
         darkTheme: commonArgs.darkTheme,
         theme: commonArgs.theme,
@@ -126,6 +127,7 @@ class _LyricAppState extends ConsumerState<LyricApp> {
     }
 
     return MaterialApp.router(
+      title: appConfig.appName,
       themeMode: generalPrefs.appBrightness,
       darkTheme: darkTheme,
       theme: theme,

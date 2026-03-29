@@ -6,6 +6,7 @@ import 'package:wtf_sliding_sheet/wtf_sliding_sheet.dart';
 import '../../data/song/song.dart';
 import '../../services/app_links/navigation.dart';
 import '../../services/song/from_uuid.dart';
+import '../common/browser_title.dart';
 import '../common/error/card.dart';
 import 'widgets/content.dart';
 
@@ -69,12 +70,15 @@ class _SongPageState extends ConsumerState<SongPage> {
         stackTrace: stackTrace,
       ),
       AsyncValue(value: null) => _buildNotFoundCard(),
-      AsyncValue(value: final Song song) => SongPageContent(
-        song: song,
-        detailsSheetScrollController: detailsSheetScrollController,
-        actionButtonsScrollController: actionButtonsScrollController,
-        transposeOverlayVisible: transposeOverlayVisible,
-        onShowDetailsSheet: showDetailsBottomSheet,
+      AsyncValue(value: final Song song) => BrowserTitle(
+        contextTitle: song.title,
+        child: SongPageContent(
+          song: song,
+          detailsSheetScrollController: detailsSheetScrollController,
+          actionButtonsScrollController: actionButtonsScrollController,
+          transposeOverlayVisible: transposeOverlayVisible,
+          onShowDetailsSheet: showDetailsBottomSheet,
+        ),
       ),
     };
   }
