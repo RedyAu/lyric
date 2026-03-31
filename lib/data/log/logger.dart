@@ -14,6 +14,12 @@ void initLogger(WidgetRef ref) {
   log.onRecord.listen((record) {
     if (kDebugMode) {
       print(record);
+      if (record.error != null) {
+        print(record.error);
+      }
+      if (record.stackTrace != null) {
+        print(record.stackTrace);
+      }
     }
     unawaited(
       Future(() {

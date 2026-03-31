@@ -1,0 +1,1 @@
+void setBrowserTabTitle(String title) {}

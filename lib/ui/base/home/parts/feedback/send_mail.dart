@@ -1,11 +1,11 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:mailto/mailto.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../../config/config.dart';
+import 'platform_info.dart';
 
 Future sendFeedbackEmail({String? errorMessage, String? stackTrace}) async {
   JsonEncoder encoder = JsonEncoder.withIndent('  ', (o) {
@@ -26,22 +26,9 @@ ${stackTrace?.split('\n').take(6).join('\n')}
 
 ''';
 
-  Map? platformInfo;
+  Map<String, dynamic>? platformInfo;
   try {
-    platformInfo = {
-      //'environment': Platform.environment,
-      'executable:': Platform.executable,
-      'executableArguments': Platform.executableArguments,
-      'localHostname': Platform.localHostname,
-      'localeName': Platform.localeName,
-      'numberOfProcessors': Platform.numberOfProcessors,
-      'operatingSystem': Platform.operatingSystem,
-      'operatingSystemVersion': Platform.operatingSystemVersion,
-      'packageConfig': Platform.packageConfig,
-      'resolvedExecutable': Platform.resolvedExecutable,
-      'script': Platform.script,
-      'dart-version': Platform.version,
-    };
+    platformInfo = await collectFeedbackPlatformInfo(packageInfo);
   } catch (_) {}
 
   final String subject = errorMessage == null

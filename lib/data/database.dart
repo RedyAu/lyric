@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
@@ -24,14 +23,10 @@ import 'song/song.dart';
 part 'database.g.dart';
 
 late LyricDatabase db;
-late final Directory dataDir;
 
 @DriftDatabase(
   tables: [Songs, Banks, Assets, Cues, PreferenceStorage],
-  include: {
-    'song/song.drift',
-    '../services/songs/filter.drift',
-  },
+  include: {'song/song.drift', '../services/songs/filter.drift'},
 )
 class LyricDatabase extends _$LyricDatabase {
   // LyricDatabase() : super(_openConnection()); //used for debugging
@@ -85,7 +80,13 @@ class LyricDatabase extends _$LyricDatabase {
   }
 
   static QueryExecutor _openConnection() {
-    return driftDatabase(name: 'lyric3');
+    return driftDatabase(
+      name: 'lyric3',
+      web: DriftWebOptions(
+        sqlite3Wasm: Uri.parse('sqlite3.wasm'),
+        driftWorker: Uri.parse('drift_worker.js'),
+      ),
+    );
   }
 }
 

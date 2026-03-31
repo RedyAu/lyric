@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Minden kotta, mindig veled">
+  <meta name="theme-color" content="#f5fafc">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Sófár Hangoló">
+  <link rel="apple-touch-icon" href="icons/Apple-touch-180.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Sófár Hangoló</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: #f5fafc;
+    }
+
+    #boot-splash {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: #f5fafc;
+      transition: opacity 220ms ease, visibility 220ms ease;
+      z-index: 9999;
+    }
+
+    #boot-splash.is-hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .boot-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .boot-icon {
+      width: 104px;
+      height: 104px;
+    }
+
+    .boot-spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid rgba(2, 84, 98, 0.16);
+      border-top-color: #c3a140;
+      border-radius: 50%;
+      box-sizing: border-box;
+      animation: boot-spinner 1s linear infinite;
+    }
+
+    @keyframes boot-spinner {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="boot-splash" aria-live="polite">
+    <div class="boot-content">
+      <img class="boot-icon" src="icons/Icon-192.png" alt="Sófár Hangoló ikon">
+      <div class="boot-spinner" role="progressbar" aria-label="Betöltés"></div>
+    </div>
+  </div>
+  <script>
+    window.addEventListener("flutter-first-frame", function () {
+      const splash = document.getElementById("boot-splash");
+      splash?.classList.add("is-hidden");
+      window.setTimeout(function () {
+        splash?.remove();
+      }, 240);
+    });
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

@@ -2,11 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../config/config.dart';
-import '../../services/error/app_error.dart';
 import '../../services/bank/bank_updated.dart';
+import '../../services/error/app_error.dart';
 import '../../services/preferences/preferences_parent.dart';
 import '../../services/songs/bank_song_update_task.dart';
 import '../../services/songs/update.dart';
@@ -15,7 +13,9 @@ import '../common/error/card.dart';
 import 'banner.dart';
 
 class LoadingPage extends ConsumerStatefulWidget {
-  const LoadingPage({super.key});
+  const LoadingPage({required this.onReady, super.key});
+
+  final VoidCallback onReady;
 
   @override
   ConsumerState<LoadingPage> createState() => _LoadingPageState();
@@ -39,10 +39,10 @@ class _LoadingPageState extends ConsumerState<LoadingPage> {
 
   Widget _buildTaskStatus(BankSongUpdateTask task) {
     if (task.isCompleted) {
-      return Icon(Icons.check);
+      return const Icon(Icons.check);
     }
     if (task.isFailed) {
-      return Icon(Icons.error_outline);
+      return const Icon(Icons.error_outline);
     }
     if (task.isRunning) {
       return SizedBox.square(
@@ -50,7 +50,7 @@ class _LoadingPageState extends ConsumerState<LoadingPage> {
         child: CircularProgressIndicator(value: task.progress),
       );
     }
-    return Icon(Icons.schedule);
+    return const Icon(Icons.schedule);
   }
 
   void _checkAndNavigateIfReady() async {
@@ -60,15 +60,7 @@ class _LoadingPageState extends ConsumerState<LoadingPage> {
     if (!hasEverUpdated.hasValue) return;
 
     if (hasEverUpdated.value == true) {
-      _hasNavigated = true;
-
-      await preferenceLoader;
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          context.replace('/home');
-        }
-      });
+      await _finishStartup();
       return;
     }
 
@@ -78,18 +70,19 @@ class _LoadingPageState extends ConsumerState<LoadingPage> {
     final allTasksSettled = ref.read(allBankSongUpdateTasksSettledProvider);
 
     if (schedulerState.hasValue && allTasksSettled) {
-      _hasNavigated = true;
-
-      await preferenceLoader;
-
-      // settings should have loaded
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          context.replace('/home');
-        }
-      });
+      await _finishStartup();
     }
+  }
+
+  Future<void> _finishStartup() async {
+    if (_hasNavigated) return;
+
+    _hasNavigated = true;
+    await preferenceLoader;
+
+    if (!mounted) return;
+
+    widget.onReady();
   }
 
   @override
@@ -101,11 +94,10 @@ class _LoadingPageState extends ConsumerState<LoadingPage> {
       _requestInitialRefresh();
     });
 
-    // Listen for hasEverUpdated changes and show banner
     ref.listenManual(hasEverUpdatedAnythingProvider, (previous, next) {
       _checkAndNavigateIfReady();
-      next.whenData((d) async {
-        if (d) {
+      next.whenData((didUpdateAnything) async {
+        if (didUpdateAnything) {
           Future(() {
             showOnlineBanksUpdatingBanner();
           });
@@ -130,21 +122,14 @@ class _LoadingPageState extends ConsumerState<LoadingPage> {
     final overallProgress = ref.watch(bankSongUpdateOverallProgressProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(appConfig.appName),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(4),
-          child: LinearProgressIndicator(),
-        ),
-      ),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: FutureBuilder(
         future: preferenceLoader,
         builder: (context, snapshot) {
-          // Show error if preferences failed to load
           if (snapshot.hasError) {
             return Center(
               child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: 600),
+                constraints: const BoxConstraints(maxWidth: 600),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: LErrorCard.fromError(
@@ -158,7 +143,6 @@ class _LoadingPageState extends ConsumerState<LoadingPage> {
             );
           }
 
-          // Continue with normal UI flow
           return Center(
             child: hasEverUpdatedProvider.value == false
                 ? switch (schedulerState) {
@@ -180,73 +164,107 @@ class _LoadingPageState extends ConsumerState<LoadingPage> {
                           },
                         );
                       }(),
-                    _ =>
-                      schedulerState.isLoading && bankTasks.isEmpty
-                          ? Center(child: CircularProgressIndicator())
-                          : ConstrainedBox(
-                              constraints: BoxConstraints(maxWidth: 600),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Card(
-                                      margin: EdgeInsets.only(bottom: 15),
-                                      clipBehavior: Clip.antiAlias,
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.stretch,
-                                        children: [
-                                          Padding(
-                                            padding: EdgeInsets.only(
-                                              top: 16,
-                                              left: 16,
-                                              bottom: 13,
-                                            ),
-                                            child: Text(
-                                              'Online tárak frissítése...',
-                                              style: Theme.of(
-                                                context,
-                                              ).textTheme.titleLarge,
-                                            ),
-                                          ),
-                                          LinearProgressIndicator(
-                                            value: overallProgress,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    ...bankTasks.map(
-                                      (task) => Padding(
-                                        padding: EdgeInsets.only(left: 20),
-                                        child: ListTile(
-                                          leading: SizedBox.square(
-                                            dimension: 32,
-                                            child: task.logo != null
-                                                ? Image.memory(task.logo!)
-                                                : Icon(Icons.library_music),
-                                          ),
-                                          title: Text(
-                                            task.title,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          subtitle: Text(task.subtitle),
-                                          trailing: _buildTaskStatus(task),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
+                    _ when bankTasks.isNotEmpty => _BankDownloadProgress(
+                      bankTasks: bankTasks,
+                      overallProgress: overallProgress,
+                      buildTaskStatus: _buildTaskStatus,
+                    ),
+                    _ => const _LoadingIndicator(),
                   }
-                : SizedBox.shrink(),
+                : const _LoadingIndicator(),
           );
         },
+      ),
+    );
+  }
+}
+
+class _LoadingIndicator extends StatelessWidget {
+  const _LoadingIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Image.asset(
+          'assets/icon/sofar_dalapp_rounded_512.png',
+          width: 104,
+          height: 104,
+        ),
+        const SizedBox(height: 24),
+        const SizedBox.square(
+          dimension: 32,
+          child: CircularProgressIndicator(),
+        ),
+      ],
+    );
+  }
+}
+
+class _BankDownloadProgress extends StatelessWidget {
+  const _BankDownloadProgress({
+    required this.bankTasks,
+    required this.overallProgress,
+    required this.buildTaskStatus,
+  });
+
+  final List<BankSongUpdateTask> bankTasks;
+  final double? overallProgress;
+  final Widget Function(BankSongUpdateTask task) buildTaskStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 600),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Card(
+              margin: const EdgeInsets.only(bottom: 15),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      top: 16,
+                      left: 16,
+                      bottom: 13,
+                    ),
+                    child: Text(
+                      'Online tárak frissítése...',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  LinearProgressIndicator(value: overallProgress),
+                ],
+              ),
+            ),
+            ...bankTasks.map(
+              (task) => Padding(
+                padding: const EdgeInsets.only(left: 20),
+                child: ListTile(
+                  leading: SizedBox.square(
+                    dimension: 32,
+                    child: task.logo != null
+                        ? Image.memory(task.logo!)
+                        : const Icon(Icons.library_music),
+                  ),
+                  title: Text(
+                    task.title,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  subtitle: Text(task.subtitle),
+                  trailing: buildTaskStatus(task),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
