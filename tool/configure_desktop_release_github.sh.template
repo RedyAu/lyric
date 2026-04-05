@@ -1,0 +1,159 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Copy this template to a private local file, fill in the placeholders, then run it.
+# Example:
+#   cp tool/configure_desktop_release_github.sh.template /tmp/configure-desktop-release.sh
+#   chmod +x /tmp/configure-desktop-release.sh
+#   /tmp/configure-desktop-release.sh
+#
+# Requirements:
+# - gh authenticated with access to the target repository
+# - gh auth status
+#
+# Default target repository:
+#   reformatus/lyric
+# Override with:
+#   TARGET_REPO=owner/repo ./configure-desktop-release.sh
+
+TARGET_REPO="${TARGET_REPO:-reformatus/lyric}"
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || {
+    echo "Missing required command: $1" >&2
+    exit 1
+  }
+}
+
+gh_auth_check() {
+  gh auth status >/dev/null
+}
+
+set_variable_if_present() {
+  local name="$1"
+  local value="$2"
+
+  if [[ -z "$value" || "$value" == CHANGEME* ]]; then
+    echo "Skipping variable $name"
+    return
+  fi
+
+  gh variable set "$name" --repo "$TARGET_REPO" --body "$value"
+  echo "Set variable $name"
+}
+
+set_secret_if_present() {
+  local name="$1"
+  local value="$2"
+
+  if [[ -z "$value" || "$value" == CHANGEME* ]]; then
+    echo "Skipping secret $name"
+    return
+  fi
+
+  gh secret set "$name" --repo "$TARGET_REPO" --body "$value"
+  echo "Set secret $name"
+}
+
+base64_file_single_line() {
+  local path="$1"
+  base64 < "$path" | tr -d '\n'
+}
+
+set_secret_from_file_if_present() {
+  local name="$1"
+  local path="$2"
+
+  if [[ -z "$path" || "$path" == CHANGEME* ]]; then
+    echo "Skipping secret $name"
+    return
+  fi
+
+  if [[ ! -f "$path" ]]; then
+    echo "File not found for $name: $path" >&2
+    exit 1
+  fi
+
+  gh secret set "$name" --repo "$TARGET_REPO" --body "$(base64_file_single_line "$path")"
+  echo "Set secret $name from $path"
+}
+
+require_command gh
+require_command base64
+gh_auth_check
+
+echo "Target repository: $TARGET_REPO"
+
+# Windows variables
+WINDOWS_STORE_APP_ID="CHANGEME_WINDOWS_STORE_APP_ID"
+WINDOWS_STORE_BETA_FLIGHT_ID="CHANGEME_WINDOWS_STORE_BETA_FLIGHT_ID"
+
+# Windows secrets
+WINDOWS_STORE_TENANT_ID="CHANGEME_WINDOWS_STORE_TENANT_ID"
+WINDOWS_STORE_SELLER_ID="CHANGEME_WINDOWS_STORE_SELLER_ID"
+WINDOWS_STORE_CLIENT_ID="CHANGEME_WINDOWS_STORE_CLIENT_ID"
+WINDOWS_STORE_CLIENT_SECRET="CHANGEME_WINDOWS_STORE_CLIENT_SECRET"
+
+# macOS direct distribution secrets
+MACOS_DEVELOPER_ID_P12_PATH="CHANGEME_/absolute/path/to/developer-id.p12"
+MACOS_DEVELOPER_ID_P12_PASSWORD="CHANGEME_MACOS_DEVELOPER_ID_P12_PASSWORD"
+MACOS_DEVELOPER_ID_APPLICATION="CHANGEME_Developer_ID_Application:_Your_Company_(TEAMID)"
+MACOS_NOTARY_API_KEY_ID="CHANGEME_MACOS_NOTARY_API_KEY_ID"
+MACOS_NOTARY_API_ISSUER_ID="CHANGEME_MACOS_NOTARY_API_ISSUER_ID"
+MACOS_NOTARY_API_KEY_PATH="CHANGEME_/absolute/path/to/AuthKey_notary.p8"
+
+# macOS App Store variables
+MACOS_APP_BUNDLE_ID="CHANGEME_MACOS_APP_BUNDLE_ID"
+MACOS_APPLE_TEAM_ID="CHANGEME_MACOS_APPLE_TEAM_ID"
+MACOS_APP_STORE_PROFILE_NAME="CHANGEME_MACOS_APP_STORE_PROFILE_NAME"
+
+# macOS App Store secrets
+MACOS_APP_STORE_CERTIFICATES_P12_PATH="CHANGEME_/absolute/path/to/app-store-signing.p12"
+MACOS_APP_STORE_CERTIFICATES_P12_PASSWORD="CHANGEME_MACOS_APP_STORE_CERTIFICATES_P12_PASSWORD"
+MACOS_APP_STORE_PROVISIONING_PROFILE_PATH="CHANGEME_/absolute/path/to/app-store.provisionprofile"
+MACOS_APP_STORE_API_KEY_ID="CHANGEME_MACOS_APP_STORE_API_KEY_ID"
+MACOS_APP_STORE_API_ISSUER_ID="CHANGEME_MACOS_APP_STORE_API_ISSUER_ID"
+MACOS_APP_STORE_API_KEY_PATH="CHANGEME_/absolute/path/to/AuthKey_appstore.p8"
+
+# Flathub variables
+FLATHUB_REPO="CHANGEME_flathub/org.lyricapp.sofar"
+FLATHUB_REPO_URL="CHANGEME_https://github.com/reformatus/lyric.git"
+
+# Flathub secrets
+FLATHUB_REPO_DEPLOY_KEY_PATH="CHANGEME_/absolute/path/to/flathub-beta-key"
+FLATHUB_REPO_TOKEN="CHANGEME_FLATHUB_REPO_TOKEN"
+
+set_variable_if_present WINDOWS_STORE_APP_ID "$WINDOWS_STORE_APP_ID"
+set_variable_if_present WINDOWS_STORE_BETA_FLIGHT_ID "$WINDOWS_STORE_BETA_FLIGHT_ID"
+
+set_secret_if_present WINDOWS_STORE_TENANT_ID "$WINDOWS_STORE_TENANT_ID"
+set_secret_if_present WINDOWS_STORE_SELLER_ID "$WINDOWS_STORE_SELLER_ID"
+set_secret_if_present WINDOWS_STORE_CLIENT_ID "$WINDOWS_STORE_CLIENT_ID"
+set_secret_if_present WINDOWS_STORE_CLIENT_SECRET "$WINDOWS_STORE_CLIENT_SECRET"
+
+set_secret_from_file_if_present MACOS_DEVELOPER_ID_P12_BASE64 "$MACOS_DEVELOPER_ID_P12_PATH"
+set_secret_if_present MACOS_DEVELOPER_ID_P12_PASSWORD "$MACOS_DEVELOPER_ID_P12_PASSWORD"
+set_secret_if_present MACOS_DEVELOPER_ID_APPLICATION "$MACOS_DEVELOPER_ID_APPLICATION"
+set_secret_if_present MACOS_NOTARY_API_KEY_ID "$MACOS_NOTARY_API_KEY_ID"
+set_secret_if_present MACOS_NOTARY_API_ISSUER_ID "$MACOS_NOTARY_API_ISSUER_ID"
+set_secret_from_file_if_present MACOS_NOTARY_API_KEY_BASE64 "$MACOS_NOTARY_API_KEY_PATH"
+
+set_variable_if_present MACOS_APP_BUNDLE_ID "$MACOS_APP_BUNDLE_ID"
+set_variable_if_present MACOS_APPLE_TEAM_ID "$MACOS_APPLE_TEAM_ID"
+set_variable_if_present MACOS_APP_STORE_PROFILE_NAME "$MACOS_APP_STORE_PROFILE_NAME"
+
+set_secret_from_file_if_present MACOS_APP_STORE_CERTIFICATES_P12_BASE64 "$MACOS_APP_STORE_CERTIFICATES_P12_PATH"
+set_secret_if_present MACOS_APP_STORE_CERTIFICATES_P12_PASSWORD "$MACOS_APP_STORE_CERTIFICATES_P12_PASSWORD"
+set_secret_from_file_if_present MACOS_APP_STORE_PROVISIONING_PROFILE_BASE64 "$MACOS_APP_STORE_PROVISIONING_PROFILE_PATH"
+set_secret_if_present MACOS_APP_STORE_API_KEY_ID "$MACOS_APP_STORE_API_KEY_ID"
+set_secret_if_present MACOS_APP_STORE_API_ISSUER_ID "$MACOS_APP_STORE_API_ISSUER_ID"
+set_secret_from_file_if_present MACOS_APP_STORE_API_KEY_BASE64 "$MACOS_APP_STORE_API_KEY_PATH"
+
+set_variable_if_present FLATHUB_REPO "$FLATHUB_REPO"
+set_variable_if_present FLATHUB_REPO_URL "$FLATHUB_REPO_URL"
+
+set_secret_from_file_if_present FLATHUB_REPO_DEPLOY_KEY "$FLATHUB_REPO_DEPLOY_KEY_PATH"
+set_secret_if_present FLATHUB_REPO_TOKEN "$FLATHUB_REPO_TOKEN"
+
+echo "Desktop release repository configuration template completed."

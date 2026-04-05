@@ -18,6 +18,9 @@ Manual trigger:
 
 - `workflow_dispatch` with an existing release tag
 
+Detailed setup instructions live in `docs/desktop-release-setup.md`.
+Repository secret and variable bootstrapping can be done with `tool/configure_desktop_release_github.sh.template`.
+
 ## Secrets and variables
 
 ### Windows Store beta
